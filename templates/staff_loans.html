@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="/static/preferences.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Loans</title>
+    <script src="/static/vendor/tailwind-3.4.17.js"></script>
+    <script src="/static/vendor/lucide-0.468.0.js"></script>
+    <style>body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+<meta name="csrf-token" content="{{ csrf_token }}"><meta name="submission-token" content="{{ submission_token() }}"><script src="{{ url_for('static', filename='app.js') }}"></script><link rel="stylesheet" href="/static/features.css"></head>
+<body class="flex h-screen text-slate-800">
+
+    {% include 'sidebar.html' %}
+
+    <main class="flex-1 flex flex-col overflow-y-auto">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center px-8 shrink-0">
+            <h1 class="text-xl font-semibold">Staff Loans</h1>
+        </header>
+
+        <div class="p-8 max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <div class="lg:col-span-1 space-y-6">
+                {% if success %}
+                <div class="bg-green-50 text-green-700 p-4 rounded-lg flex items-center border border-green-200 shadow-sm">
+                    <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i> Loan recorded!
+                </div>
+                {% endif %}
+
+                <!-- Liability summary -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 {% if total_outstanding_loans > 0 %}border-l-4 border-l-amber-500{% endif %}">
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Total Owed Back to Staff</p>
+                    <p class="text-3xl font-bold {% if total_outstanding_loans > 0 %}text-amber-600{% else %}text-emerald-600{% endif %}">₹{{ "%.2f"|format(total_outstanding_loans) }}</p>
+                    <p class="text-xs text-slate-400 mt-1">{{ outstanding_loans|length }} outstanding cash loan(s)</p>
+                </div>
+
+                <!-- Add a new loan -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                    <h2 class="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+                        <i data-lucide="hand-coins" class="w-5 h-5 mr-2 text-indigo-600"></i> Record a Staff Loan
+                    </h2>
+                    <p class="text-xs text-slate-500 mb-4">When a staff member lends the canteen cash to cover a shortfall — interest-free, repaid in cash later or adjusted on their next bill.</p>
+                    <form action="/staff-loans" method="POST" class="space-y-4"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Staff Member</label>
+                            <select name="employee_id" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option value="">-- Select Active Staff --</option>
+                                {% for emp in employees %}
+                                <option value="{{ emp[0] }}">{{ emp[1] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Amount (₹)</label>
+                            <input type="number" name="amount" step="1" required placeholder="e.g. 1000" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Date</label>
+                            <input type="date" name="loan_date" id="datePicker" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Repayment Plan</label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <label class="flex items-center border border-slate-300 rounded-lg px-3 py-2.5 cursor-pointer has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50 transition-colors">
+                                    <input type="radio" name="repay_method" value="cash" required class="mr-2 accent-amber-600">
+                                    <span class="text-sm font-medium text-slate-700">Cash Back Later</span>
+                                </label>
+                                <label class="flex items-center border border-slate-300 rounded-lg px-3 py-2.5 cursor-pointer has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50 transition-colors">
+                                    <input type="radio" name="repay_method" value="bill_credit" required class="mr-2 accent-emerald-600">
+                                    <span class="text-sm font-medium text-slate-700">Adjust on Bill</span>
+                                </label>
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-2">"Adjust on Bill" applies instantly as a payment against their own tiffin bill. "Cash Back Later" is tracked here until you mark it repaid.</p>
+                        </div>
+                        <button type="submit" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm">
+                            Save Loan
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 space-y-6">
+
+                <!-- Outstanding loans (cash owed back) -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 bg-amber-50/60">
+                        <h2 class="text-sm font-semibold text-amber-800 uppercase tracking-wider flex items-center">
+                            <i data-lucide="clock" class="w-4 h-4 mr-2"></i> Outstanding (Cash Owed to Staff)
+                        </h2>
+                    </div>
+                    <div class="overflow-y-auto max-h-[320px]">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="sticky top-0 bg-white shadow-sm z-10 border-b border-slate-200">
+                                <tr class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                    <th class="px-6 py-3">Loan Date</th>
+                                    <th class="px-6 py-3">Staff Member</th>
+                                    <th class="px-6 py-3 text-right">Amount</th>
+                                    <th class="px-4 py-3"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-sm">
+                                {% for loan in outstanding_loans %}
+                                <tr class="hover:bg-slate-50 transition-colors group">
+                                    <td class="px-6 py-4 text-slate-600">{{ loan[3] }}</td>
+                                    <td class="px-6 py-4 font-medium text-slate-900">{{ loan[1] }}</td>
+                                    <td class="px-6 py-4 text-right font-semibold text-amber-600">₹{{ "%.2f"|format(loan[2]) }}</td>
+                                    <td class="px-4 py-4 text-right whitespace-nowrap">
+                                        <button type="button" onclick="openSettleModal('{{ loan[0] }}', '{{ loan[1] }}', '{{ "%.2f"|format(loan[2]) }}')" class="inline-flex items-center px-3 py-1.5 bg-emerald-600 text-white rounded font-medium hover:bg-emerald-700 transition-colors shadow-sm text-xs mr-2">
+                                            <i data-lucide="check" class="w-3.5 h-3.5 mr-1"></i> Mark Repaid
+                                        </button>
+                                        <button type="button" onclick="openDeleteLoanModal('{{ loan[0] }}')" class="text-slate-400 hover:text-rose-600 p-1 transition-colors" title="Delete">
+                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="px-6 py-8 text-center text-slate-500 italic">
+                                        <i data-lucide="party-popper" class="w-6 h-6 text-emerald-400 mx-auto mb-1"></i><br>
+                                        No cash owed to staff right now.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Settled loan history -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center">
+                            <i data-lucide="check-circle" class="w-4 h-4 mr-2 text-emerald-500"></i> Settled History
+                        </h2>
+                    </div>
+                    <div class="overflow-y-auto max-h-[320px]">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="sticky top-0 bg-white shadow-sm z-10 border-b border-slate-200">
+                                <tr class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                    <th class="px-6 py-3">Loan Date</th>
+                                    <th class="px-6 py-3">Staff Member</th>
+                                    <th class="px-6 py-3">Repaid Via</th>
+                                    <th class="px-6 py-3">Settled On</th>
+                                    <th class="px-6 py-3 text-right">Amount</th>
+                                    <th class="px-4 py-3"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-sm">
+                                {% for loan in settled_loans %}
+                                <tr class="hover:bg-slate-50 transition-colors group">
+                                    <td class="px-6 py-4 text-slate-500">{{ loan[3] }}</td>
+                                    <td class="px-6 py-4 font-medium text-slate-800">{{ loan[1] }}</td>
+                                    <td class="px-6 py-4">
+                                        {% if loan[4] == 'bill_credit' %}
+                                        <span class="bg-emerald-100 text-emerald-700 text-[11px] font-semibold px-2 py-1 rounded-full">Bill Credit</span>
+                                        {% else %}
+                                        <span class="bg-slate-100 text-slate-600 text-[11px] font-semibold px-2 py-1 rounded-full">Cash</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-6 py-4 text-slate-500">{{ loan[5] }}</td>
+                                    <td class="px-6 py-4 text-right font-semibold text-slate-700">₹{{ "%.2f"|format(loan[2]) }}</td>
+                                    <td class="px-4 py-4 text-right whitespace-nowrap">
+                                        <button type="button" onclick="openDeleteLoanModal('{{ loan[0] }}')" class="text-slate-400 hover:text-rose-600 p-1 transition-colors opacity-0 group-hover:opacity-100 transition-opacity" title="Delete">
+                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="px-6 py-8 text-center text-slate-500 italic">No settled loans yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Mark Repaid Modal -->
+    <div id="settleModalOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="settleModalBox">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="banknote" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Mark Loan as Repaid?</h3>
+                <p class="text-sm text-slate-500 mb-4">Confirm you've handed <strong id="settleModalAmount"></strong> back in cash to <strong id="settleModalName"></strong>. This is recorded for your reference only — it won't affect the Expense Tracker or any other totals.</p>
+
+                <div class="text-left mb-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Date Repaid</label>
+                    <input type="date" id="settleDateInput" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+
+                <form action="/settle-loan" method="POST" class="flex space-x-3"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                    <input type="hidden" name="loan_id" id="settle_loan_id">
+                    <input type="hidden" name="settled_date" id="settle_date_hidden">
+                    <button type="button" onclick="closeSettleModal()" class="flex-1 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+                    <button type="submit" onclick="document.getElementById('settle_date_hidden').value = document.getElementById('settleDateInput').value;" class="flex-1 bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-700 transition-colors shadow-sm">Confirm</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Loan Modal -->
+    <div id="deleteLoanModalOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="deleteLoanModalBox">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Delete This Loan Record?</h3>
+                <p class="text-sm text-slate-500 mb-6">If this was applied as a bill credit, the matching payment on the staff member's bill will also be removed.</p>
+                <form action="/delete-loan" method="POST" class="flex space-x-3"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                    <input type="hidden" name="loan_id" id="delete_loan_id">
+                    <button type="button" onclick="closeDeleteLoanModal()" class="flex-1 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+                    <button type="submit" class="flex-1 bg-rose-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-rose-700 transition-colors shadow-sm">Yes, Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        document.getElementById('datePicker').value = localISODate();
+
+        function openSettleModal(loanId, name, amount) {
+            document.getElementById('settle_loan_id').value = loanId;
+            document.getElementById('settleModalName').innerText = name;
+            document.getElementById('settleModalAmount').innerText = '₹' + amount;
+            const today = localISODate();
+            document.getElementById('settleDateInput').value = today;
+            document.getElementById('settle_date_hidden').value = today;
+
+            const overlay = document.getElementById('settleModalOverlay');
+            const box = document.getElementById('settleModalBox');
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+            lucide.createIcons();
+        }
+        function closeSettleModal() {
+            const overlay = document.getElementById('settleModalOverlay');
+            const box = document.getElementById('settleModalBox');
+            overlay.classList.add('opacity-0');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+
+        function openDeleteLoanModal(loanId) {
+            document.getElementById('delete_loan_id').value = loanId;
+            const overlay = document.getElementById('deleteLoanModalOverlay');
+            const box = document.getElementById('deleteLoanModalBox');
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+        }
+        function closeDeleteLoanModal() {
+            const overlay = document.getElementById('deleteLoanModalOverlay');
+            const box = document.getElementById('deleteLoanModalBox');
+            overlay.classList.add('opacity-0');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+
+        // Universal Prevent Double Submit Logic
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            // Use the button that was ACTUALLY clicked (e.submitter), not just
+            // "the first submit button in the form" -- some pages have more
+            // than one submit button in the same form.
+            const submitBtn = e.submitter || form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                if (submitBtn.disabled) { e.preventDefault(); return; }
+                submitBtn.disabled = true;
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 mr-2 animate-spin inline"></i> Processing...';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+                setTimeout(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }, 4000);
+            }
+        });
+    </script>
+{% include 'features/command.html' %}<script src="/static/features.js" defer></script></body>
+</html>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="/static/preferences.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Ledger Entry</title>
+    <script src="/static/vendor/tailwind-3.4.17.js"></script>
+    <script src="/static/vendor/lucide-0.468.0.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        /* Hides the up/down arrows inside number inputs for a cleaner grid */
+        input[type="number"]::-webkit-inner-spin-button, 
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+<meta name="csrf-token" content="{{ csrf_token }}"><meta name="submission-token" content="{{ submission_token() }}"><script src="{{ url_for('static', filename='app.js') }}"></script><link rel="stylesheet" href="/static/features.css"></head>
+<body class="flex h-screen text-slate-800 overflow-hidden">
+
+    {% include 'sidebar.html' %}
+
+    <main class="flex-1 flex flex-col h-full">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+            <h1 class="text-xl font-semibold">Meal workspace</h1>
+        </header>
+
+        <div class="p-8 flex-1 overflow-hidden flex flex-col">
+            {% if success %}
+            <div class="mb-6 bg-green-50 text-green-700 p-4 rounded-lg flex items-center border border-green-200 shrink-0">
+                <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>
+                Bulk monthly entries saved successfully! Master PDF is ready for generation.
+            </div>
+            {% endif %}
+
+            <div id="savedBanner" class="mb-4 bg-emerald-50 text-emerald-700 p-3 rounded-lg flex items-center border border-emerald-200 shrink-0 text-sm hidden">
+                <i data-lucide="check-check" class="w-4 h-4 mr-2 shrink-0"></i>
+                <span id="savedBannerText">Loading what's already saved for this date...</span>
+                <span class="ml-auto flex items-center text-emerald-500">
+                    <span class="w-3 h-3 rounded bg-emerald-100 border-2 border-emerald-500 mr-1.5 inline-block"></span> already saved
+                </span>
+            </div>
+
+            <form id="bulkLogForm" action="/bulk-log" method="POST" class="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col flex-1 overflow-hidden"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                
+                <div class="p-6 border-b border-slate-200 bg-slate-50 shrink-0 flex items-center justify-between">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Entry date</label>
+                        <input type="date" name="log_date" required id="datePicker" class="w-64 border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <button type="submit" class="bg-indigo-600 text-white px-8 py-2.5 rounded-lg shadow-sm hover:bg-indigo-700 font-medium">
+                        Save Complete Roster
+                    </button>
+                </div>
+
+                <div class="meal-toolbar"><label>Find staff<input type="search" id="mealSearch" placeholder="Name or department"></label><label>Department<select id="mealDepartment"><option value="">All departments</option>{% for department in employees|map(attribute=2)|unique|sort %}<option>{{ department }}</option>{% endfor %}</select></label><label>Copy from day<input type="date" id="copyMealDate"></label><button type="button" id="previewMealCopy" class="button subtle">Preview copy</button><small id="mealVisibleCount"></small></div>
+<div class="meal-status">Search filters only the display. Saving includes the entire roster. Copy fills empty cells only; review before saving.</div>
+<div class="overflow-auto flex-1">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="sticky top-0 bg-slate-100 shadow-sm z-10">
+                            <tr class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                <th class="px-6 py-4 border-b border-slate-200">Staff Member</th>
+                                <th class="px-3 py-4 border-b border-slate-200 text-center">Status</th>
+                                {% for item in items %}
+                                <th class="px-3 py-4 border-b border-slate-200 text-center" data-item-name="{{ item[1] }}">{{ item[1] }}</th>
+                                {% endfor %}
+                                <th class="px-3 py-4 border-b border-slate-200 text-center bg-indigo-50 text-indigo-700">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for emp in employees %}
+                            <tr class="hover:bg-indigo-50/30 transition-colors" data-emp-row="{{ emp[0] }}">
+                                <td class="px-6 py-3">
+                                    <div class="font-medium text-slate-900">{{ emp[1] }}</div>
+                                    <div class="text-xs text-slate-500">{{ emp[2] }}</div>
+                                </td>
+                                <td class="px-3 py-3 text-center">
+                                    <button type="button" onclick="toggleAbsent({{ emp[0] }}, this)" class="absent-toggle-btn inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium border bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100 transition-colors">
+                                        <i data-lucide="user-check" class="w-3 h-3 mr-1"></i> Present
+                                    </button>
+                                </td>
+                                {% for item in items %}
+                                <td class="px-2 py-3 text-center">
+                                    <input type="number" name="qty_{{ emp[0] }}_{{ item[1] }}" min="0" placeholder="-" data-price="{{ item[2] }}" data-current-price="{{ item[2] }}"
+                                           class="qty-input w-16 border border-slate-300 rounded bg-white px-2 py-1.5 text-center text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+                                </td>
+                                {% endfor %}
+                                <td class="px-3 py-3 text-center font-semibold text-indigo-700 bg-indigo-50/40 whitespace-nowrap" id="rowTotal_{{ emp[0] }}">₹0.00</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="bg-slate-100 font-bold border-t-2 border-slate-300 sticky bottom-0">
+                                <td colspan="2" class="px-6 py-3 text-right text-slate-700">Column Totals</td>
+                                {% for item in items %}
+                                <td class="px-3 py-3 text-center text-slate-700 whitespace-nowrap" data-item-name="{{ item[1] }}">
+                                    <div class="itemTotal-qty" id="itemTotalQty_{{ item[1] }}">0</div>
+                                    <div class="itemTotal-amt text-[10px] font-normal text-slate-400" id="itemTotalAmt_{{ item[1] }}">₹0.00</div>
+                                </td>
+                                {% endfor %}
+                                <td class="px-3 py-3 text-center text-indigo-700 whitespace-nowrap" id="grandTotalAmount">₹0.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        lucide.createIcons();
+        document.getElementById('datePicker').value = new URLSearchParams(location.search).get('date') || localISODate();
+
+        // Distinct highlight for a cell that's ALREADY SAVED for this date --
+        // deliberately a different color from a plain box so it's obvious
+        // at a glance which cells are real saved data.
+        function markSaved(input) {
+            input.style.backgroundColor = '#ecfdf5';   // emerald-50
+            input.style.borderColor = '#10b981';        // emerald-500
+            input.style.borderWidth = '2px';
+            input.style.color = '#047857';               // emerald-700
+            input.style.fontWeight = '700';
+            input.classList.add('saved-cell');
+            input.title = 'Already saved for this date';
+        }
+        function clearSavedMark(input) {
+            if (!input.classList.contains('saved-cell')) return;
+            input.style.backgroundColor = '';
+            input.style.borderColor = '';
+            input.style.borderWidth = '';
+            input.style.color = '';
+            input.style.fontWeight = '';
+            input.classList.remove('saved-cell');
+            input.removeAttribute('title');
+        }
+
+        // Guards against a race condition: if the date is changed again
+        // before an in-flight fetch resolves, the OLD (now-stale) response
+        // must never be allowed to write into the DOM -- otherwise a quick
+        // date change can leave stale data from the
+        // PREVIOUS date, or wipe out ones for the date actually being viewed.
+        let bulkLogRequestGen = 0;
+
+        // Loads whatever's already saved for the selected date and fills +
+        // highlights those cells, so revisiting a partially-completed date
+        // immediately shows where things were left off.
+        async function loadExistingEntries() {
+            const myGen = ++bulkLogRequestGen;
+            const date = document.getElementById('datePicker').value;
+            document.querySelectorAll('.qty-input').forEach(input => { input.dataset.price = input.dataset.currentPrice; });
+            const savedBanner = document.getElementById('savedBanner');
+            const savedBannerText = document.getElementById('savedBannerText');
+            const saveButton = document.querySelector('#bulkLogForm button[type="submit"]');
+            saveButton.disabled = true;
+            if (!date) return;
+
+            // Clear any previous saved-marks before loading the new date's data
+            document.querySelectorAll('.qty-input.saved-cell').forEach(input => {
+                clearSavedMark(input);
+                input.value = '';
+                delete input.dataset.savedQuantity;
+                delete input.dataset.userEdited;
+            });
+
+            try {
+                const res = await fetch(`/api/bulk-log-existing?date=${date}&include_prices=1`);
+                if (!res.ok) throw new Error('Could not load saved entries');
+                const existing = await res.json();
+                if (myGen !== bulkLogRequestGen) return; // a newer date change happened meanwhile -- discard
+
+                let savedCount = 0;
+                for (const [empId, items] of Object.entries(existing)) {
+                    const row = document.querySelector(`tr[data-emp-row="${empId}"]`);
+                    if (!row) continue;
+                    for (const [itemName, entry] of Object.entries(items)) {
+                        const input = row.querySelector(`input[name="qty_${empId}_${itemName}"]`);
+                        if (input) {
+                            input.value = entry.quantity;
+                            input.dataset.savedQuantity = entry.quantity;
+                            input.dataset.price = entry.price;
+                            input.dataset.userEdited = "1"; // treat as real saved data
+                            markSaved(input);
+                            savedCount++;
+                        }
+                    }
+                }
+
+                if (savedCount > 0) {
+                    savedBannerText.innerText = `${savedCount} entries already saved for this date (highlighted in green below). Add the rest and save again — nothing will be duplicated.`;
+                    savedBanner.classList.remove('hidden');
+                } else {
+                    savedBanner.classList.add('hidden');
+                }
+                updateAllTotals();
+                saveButton.disabled = false;
+                window.dispatchEvent(new Event('mealgridloaded'));
+            } catch (e) {
+                console.error('Failed to load existing entries:', e);
+                if (myGen === bulkLogRequestGen) { savedBanner.classList.remove('hidden'); savedBannerText.textContent = 'Could not load this day. Reload before saving to protect existing entries.'; }
+            }
+        }
+
+        // Track which inputs the manager has touched by hand.
+        document.querySelectorAll('.qty-input').forEach(input => {
+            input.addEventListener('input', function() {
+                this.dataset.userEdited = "1";
+                clearSavedMark(this); // now being actively edited, not just "as saved"
+                updateRowTotal(this.closest('tr[data-emp-row]'));
+                updateGrandTotal();
+            });
+        });
+
+        // Recomputes one staff member's row total (sum of qty x item price)
+        // and writes it into that row's Total cell.
+        function updateRowTotal(row) {
+            if (!row) return;
+            const empId = row.getAttribute('data-emp-row');
+            const cell = document.getElementById(`rowTotal_${empId}`);
+            if (!cell) return;
+            let total = 0;
+            row.querySelectorAll('.qty-input').forEach(input => {
+                const qty = parseFloat(input.value) || 0;
+                const price = parseFloat(input.dataset.price) || 0;
+                total += qty * price;
+            });
+            cell.innerText = `₹${total.toFixed(2)}`;
+        }
+
+        // Recomputes the bottom summary: total quantity AND total amount for
+        // EACH item (one pair of numbers per column, matching what's
+        // actually being logged), plus the grand total amount across all rows.
+        function updateGrandTotal() {
+            const perItemQty = {};
+            const perItemAmt = {};
+            let totalAmount = 0;
+            document.querySelectorAll('tbody tr[data-emp-row]').forEach(row => {
+                if (row.classList.contains('absent-row')) return;
+                row.querySelectorAll('.qty-input').forEach(input => {
+                    const qty = parseFloat(input.value) || 0;
+                    const price = parseFloat(input.dataset.price) || 0;
+                    const itemName = input.name.replace(/^qty_\d+_/, '');
+                    perItemQty[itemName] = (perItemQty[itemName] || 0) + qty;
+                    perItemAmt[itemName] = (perItemAmt[itemName] || 0) + (qty * price);
+                    totalAmount += qty * price;
+                });
+            });
+            document.querySelectorAll('[id^="itemTotalQty_"]').forEach(cell => {
+                const itemName = cell.id.replace(/^itemTotalQty_/, '');
+                const qty = perItemQty[itemName] || 0;
+                cell.innerText = qty > 0 ? qty : '-';
+            });
+            document.querySelectorAll('[id^="itemTotalAmt_"]').forEach(cell => {
+                const itemName = cell.id.replace(/^itemTotalAmt_/, '');
+                const amt = perItemAmt[itemName] || 0;
+                cell.innerText = amt > 0 ? `₹${amt.toFixed(2)}` : '';
+            });
+            const totalAmountEl = document.getElementById('grandTotalAmount');
+            if (totalAmountEl) totalAmountEl.innerText = `₹${totalAmount.toFixed(2)}`;
+        }
+
+        // Recomputes every row's total plus the grand total -- used after
+        // bulk state changes (loading existing entries, date change, absent toggle).
+        function updateAllTotals() {
+            document.querySelectorAll('tbody tr[data-emp-row]').forEach(row => updateRowTotal(row));
+            updateGrandTotal();
+        }
+
+        // Spreadsheet-style keyboard navigation: Enter moves down instead of
+        // submitting the whole form, and the arrow keys move between cells
+        // instead of the browser's native "increment/decrement the number"
+        // behavior or moving the text cursor.
+        function moveFocus(current, rowDelta, colDelta) {
+            const allRows = Array.from(document.querySelectorAll('tbody tr[data-emp-row]'));
+            const row = current.closest('tr');
+            const rowIndex = allRows.indexOf(row);
+            const rowInputs = Array.from(row.querySelectorAll('.qty-input'));
+            const colIndex = rowInputs.indexOf(current);
+
+            if (rowDelta !== 0) {
+                // Skip over any row that's disabled (marked Absent) and
+                // keep going in the same direction until a usable cell is found.
+                let targetRowIndex = rowIndex + rowDelta;
+                while (targetRowIndex >= 0 && targetRowIndex < allRows.length) {
+                    const targetInputs = Array.from(allRows[targetRowIndex].querySelectorAll('.qty-input'));
+                    const targetInput = targetInputs[colIndex];
+                    if (targetInput && !targetInput.disabled) {
+                        targetInput.focus();
+                        targetInput.select();
+                        return;
+                    }
+                    targetRowIndex += rowDelta;
+                }
+            } else if (colDelta !== 0) {
+                const targetColIndex = colIndex + colDelta;
+                if (targetColIndex >= 0 && targetColIndex < rowInputs.length) {
+                    const targetInput = rowInputs[targetColIndex];
+                    if (targetInput && !targetInput.disabled) {
+                        targetInput.focus();
+                        targetInput.select();
+                    }
+                }
+            }
+        }
+        document.querySelectorAll('.qty-input').forEach(input => {
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // never submit the form on Enter
+                    moveFocus(this, 1, 0); // move down, like a spreadsheet
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault(); // stop the native "increase number" behavior
+                    moveFocus(this, -1, 0);
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    moveFocus(this, 1, 0);
+                } else if (e.key === 'ArrowLeft') {
+                    // Note: selectionStart/selectionEnd throw on type="number"
+                    // inputs in most browsers, so we can't check cursor
+                    // position here -- move cells unconditionally, same as Up/Down.
+                    e.preventDefault();
+                    moveFocus(this, 0, -1);
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    moveFocus(this, 0, 1);
+                }
+            });
+        });
+
+        // Mark a staff member absent for this date: clears + locks their row
+        // so it won't be auto-filled and nothing gets submitted for them.
+        function toggleAbsent(empId, btn) {
+            const row = document.querySelector(`tr[data-emp-row="${empId}"]`);
+            const inputs = row.querySelectorAll('.qty-input');
+            const nowAbsent = !row.classList.contains('absent-row');
+
+            if (nowAbsent) {
+                row.classList.add('absent-row', 'opacity-50');
+                inputs.forEach(input => {
+                    input.value = '';
+                    input.readOnly = true;
+                    delete input.dataset.userEdited;
+                });
+                btn.innerHTML = '<i data-lucide="user-x" class="w-3 h-3 mr-1"></i> Absent';
+                btn.classList.remove('bg-slate-50', 'text-slate-400', 'border-slate-200', 'hover:bg-slate-100');
+                btn.classList.add('bg-rose-100', 'text-rose-700', 'border-rose-200', 'hover:bg-rose-200');
+            } else {
+                row.classList.remove('absent-row', 'opacity-50');
+                inputs.forEach(input => { input.readOnly = false; });
+                btn.innerHTML = '<i data-lucide="user-check" class="w-3 h-3 mr-1"></i> Present';
+                btn.classList.remove('bg-rose-100', 'text-rose-700', 'border-rose-200', 'hover:bg-rose-200');
+                btn.classList.add('bg-slate-50', 'text-slate-400', 'border-slate-200', 'hover:bg-slate-100');
+            }
+            lucide.createIcons();
+            updateAllTotals();
+        }
+
+        document.getElementById('datePicker').addEventListener('change', async function() {
+            // New date selected -> this is a genuinely different day's data,
+            // so cleared values, cleared edit/saved marks, and enabled state.
+            document.querySelectorAll('.qty-input').forEach(input => {
+                input.value = '';
+                delete input.dataset.userEdited;
+                input.readOnly = false;
+                clearSavedMark(input);
+            });
+            updateAllTotals();
+            await loadExistingEntries(); // show what's already saved for this date
+        });
+
+        // Run once on page load for today's default date
+        loadExistingEntries();
+
+        // Universal Prevent Double Submit Logic
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            // Use the button that was ACTUALLY clicked (e.submitter), not just
+            // "the first submit button in the form" -- some pages have more
+            // than one submit button in the same form.
+            const submitBtn = e.submitter || form.querySelector('button[type="submit"]');
+            
+            if (submitBtn) {
+                // If the button is already disabled, stop the form from submitting again
+                if (submitBtn.disabled) {
+                    e.preventDefault();
+                    return;
+                }
+                
+                // Disable the button and change the text
+                submitBtn.disabled = true;
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 mr-2 animate-spin inline"></i> Processing...';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+                
+                // Safety fallback: Re-enable the button after 4 seconds just in case the server hangs
+                setTimeout(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }, 4000);
+            }
+        });
+    </script>
+{% include 'features/command.html' %}<script src="/static/features.js" defer></script><dialog id="mealReviewDialog" class="wide-dialog"><div class="dialog-heading"><h2 id="mealReviewTitle">Review meal entries</h2><button type="button" data-dialog-close aria-label="Close review">✕</button></div><p id="mealReviewSummary" class="notice"></p><div id="mealReviewRows" class="table-scroll"></div><div class="toolbar" style="margin-top:18px"><button type="button" id="mealReviewApply" class="button">Confirm</button><button type="button" data-dialog-close class="button subtle">Cancel</button></div></dialog><script src="/static/meal-workspace.js" defer></script></body>
+</html>

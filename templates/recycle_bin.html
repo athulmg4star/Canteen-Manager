@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="/static/preferences.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recycle Bin</title>
+    <script src="/static/vendor/tailwind-3.4.17.js"></script>
+    <script src="/static/vendor/lucide-0.468.0.js"></script>
+    <style>body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+<meta name="csrf-token" content="{{ csrf_token }}"><meta name="submission-token" content="{{ submission_token() }}"><script src="{{ url_for('static', filename='app.js') }}"></script><link rel="stylesheet" href="/static/features.css"></head>
+<body class="flex h-screen text-slate-800">
+
+    {% include 'sidebar.html' %}
+
+    <main class="flex-1 flex flex-col overflow-y-auto">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+            <h1 class="text-xl font-semibold">Recycle Bin</h1>
+            <p class="text-xs text-slate-500">Deleted items are kept for {{ retention_days }} days, then removed automatically.</p>
+        </header>
+
+        <div class="p-8 max-w-5xl w-full mx-auto">
+            {% if items|length == 0 %}
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center">
+                <i data-lucide="trash-2" class="w-10 h-10 text-slate-300 mx-auto mb-3"></i>
+                <p class="text-slate-500 font-medium">Recycle Bin is empty</p>
+                <p class="text-xs text-slate-400 mt-1">Anything you delete across the app shows up here for {{ retention_days }} days before it's gone for good.</p>
+            </div>
+            {% else %}
+            <div id="bulkActionBar" class="hidden bg-indigo-600 text-white rounded-xl shadow-sm px-6 py-3 mb-4 items-center justify-between">
+                <span class="text-sm font-medium"><span id="selectedCount">0</span> item(s) selected</span>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="submitBulkAction('restore')" class="inline-flex items-center px-4 py-1.5 bg-white text-indigo-700 rounded-lg font-medium hover:bg-indigo-50 transition-colors shadow-sm text-xs">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 mr-1.5"></i> Restore Selected
+                    </button>
+                    <button type="button" onclick="openBulkPurgeModal()" class="inline-flex items-center px-4 py-1.5 bg-rose-600 text-white rounded-lg font-medium hover:bg-rose-700 transition-colors shadow-sm text-xs">
+                        <i data-lucide="x" class="w-3.5 h-3.5 mr-1.5"></i> Delete Selected Forever
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                            <th class="pl-6 pr-2 py-3 w-10">
+                                <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                            </th>
+                            <th class="px-6 py-3">Item</th>
+                            <th class="px-6 py-3">Type</th>
+                            <th class="px-6 py-3">Deleted</th>
+                            <th class="px-6 py-3">Expires</th>
+                            <th class="px-6 py-3 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-sm">
+                        {% for item in items %}
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="pl-6 pr-2 py-4">
+                                <input type="checkbox" class="row-checkbox rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" value="{{ item.table }}|{{ item.id }}" onchange="updateBulkBar()">
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mr-3 shrink-0">
+                                        <i data-lucide="{{ item.icon }}" class="w-4 h-4"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-slate-900">{{ item.summary }}</p>
+                                        <p class="text-xs text-slate-500">{{ item.detail }}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="bg-slate-100 text-slate-600 text-[11px] font-semibold px-2 py-1 rounded-full">{{ item.label }}</span>
+                            </td>
+                            <td class="px-6 py-4 text-slate-500 text-xs">{{ item.deleted_at }}</td>
+                            <td class="px-6 py-4">
+                                {% if item.days_left <= 1 %}
+                                <span class="text-rose-600 text-xs font-semibold">{{ item.days_left }} day left</span>
+                                {% else %}
+                                <span class="text-slate-500 text-xs">{{ item.days_left }} days left</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-right whitespace-nowrap">
+                                <form action="/restore-item" method="POST" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                                    <input type="hidden" name="table" value="{{ item.table }}">
+                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                    <button type="submit" class="inline-flex items-center px-3 py-1.5 bg-emerald-600 text-white rounded font-medium hover:bg-emerald-700 transition-colors shadow-sm text-xs mr-2">
+                                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 mr-1"></i> Restore
+                                    </button>
+                                </form>
+                                <button type="button" onclick="openPurgeModal('{{ item.table }}', '{{ item.id }}', '{{ item.summary|replace("'", "") }}')" class="inline-flex items-center px-3 py-1.5 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded text-slate-500 hover:text-rose-600 transition-colors shadow-sm text-xs">
+                                    <i data-lucide="x" class="w-3.5 h-3.5 mr-1"></i> Delete Forever
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <!-- Hidden forms used for bulk actions (populated by JS before submit) -->
+    <form id="bulkRestoreForm" action="/bulk-restore-items" method="POST" class="hidden"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}"></form>
+    <form id="bulkPurgeForm" action="/bulk-purge-items" method="POST" class="hidden"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}"></form>
+
+    <!-- Bulk Permanent Delete Confirmation Modal -->
+    <div id="bulkPurgeModalOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="bulkPurgeModalBox">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Delete <span id="bulkPurgeCount">0</span> Items Forever?</h3>
+                <p class="text-sm text-slate-500 mb-6">These items will be permanently removed. This cannot be undone.</p>
+                <div class="flex space-x-3">
+                    <button type="button" onclick="closeBulkPurgeModal()" class="flex-1 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+                    <button type="button" onclick="submitBulkAction('purge')" class="flex-1 bg-rose-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-rose-700 transition-colors shadow-sm">Delete Forever</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Permanent Delete Confirmation Modal -->
+    <div id="purgeModalOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="purgeModalBox">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Delete Forever?</h3>
+                <p class="text-sm text-slate-500 mb-6">"<span id="purgeModalSummary"></span>" will be permanently removed. This cannot be undone.</p>
+                <form action="/purge-item" method="POST" class="flex space-x-3"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                    <input type="hidden" name="table" id="purge_table">
+                    <input type="hidden" name="item_id" id="purge_item_id">
+                    <button type="button" onclick="closePurgeModal()" class="flex-1 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+                    <button type="submit" class="flex-1 bg-rose-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-rose-700 transition-colors shadow-sm">Delete Forever</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        function toggleSelectAll(checkbox) {
+            document.querySelectorAll('.row-checkbox').forEach(cb => { cb.checked = checkbox.checked; });
+            updateBulkBar();
+        }
+
+        function updateBulkBar() {
+            const checked = document.querySelectorAll('.row-checkbox:checked');
+            const bar = document.getElementById('bulkActionBar');
+            const countEl = document.getElementById('selectedCount');
+            const all = document.querySelectorAll('.row-checkbox');
+            const selectAllCb = document.getElementById('selectAllCheckbox');
+
+            countEl.innerText = checked.length;
+            if (checked.length > 0) {
+                bar.classList.remove('hidden');
+                bar.classList.add('flex');
+            } else {
+                bar.classList.add('hidden');
+                bar.classList.remove('flex');
+            }
+            selectAllCb.checked = all.length > 0 && checked.length === all.length;
+            selectAllCb.indeterminate = checked.length > 0 && checked.length < all.length;
+        }
+
+        function submitBulkAction(action) {
+            const checked = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
+            if (checked.length === 0) return;
+
+            const formId = action === 'restore' ? 'bulkRestoreForm' : 'bulkPurgeForm';
+            const form = document.getElementById(formId);
+            form.innerHTML = ''; // clear any previous hidden inputs
+            checked.forEach(val => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'selected_items';
+                input.value = val;
+                form.appendChild(input);
+            });
+            ['csrf', 'submission'].forEach(kind => {
+                const input = document.createElement('input'); input.type = 'hidden';
+                input.name = kind + '_token'; input.value = document.querySelector('meta[name="' + kind + '-token"]').content;
+                form.appendChild(input);
+            });
+            form.submit();
+        }
+
+        function openBulkPurgeModal() {
+            const checked = document.querySelectorAll('.row-checkbox:checked');
+            if (checked.length === 0) return;
+            document.getElementById('bulkPurgeCount').innerText = checked.length;
+            const overlay = document.getElementById('bulkPurgeModalOverlay');
+            const box = document.getElementById('bulkPurgeModalBox');
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+        }
+        function closeBulkPurgeModal() {
+            const overlay = document.getElementById('bulkPurgeModalOverlay');
+            const box = document.getElementById('bulkPurgeModalBox');
+            overlay.classList.add('opacity-0');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+
+        function openPurgeModal(table, itemId, summary) {
+            document.getElementById('purge_table').value = table;
+            document.getElementById('purge_item_id').value = itemId;
+            document.getElementById('purgeModalSummary').innerText = summary;
+            const overlay = document.getElementById('purgeModalOverlay');
+            const box = document.getElementById('purgeModalBox');
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+        }
+        function closePurgeModal() {
+            const overlay = document.getElementById('purgeModalOverlay');
+            const box = document.getElementById('purgeModalBox');
+            overlay.classList.add('opacity-0');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+    </script>
+{% include 'features/command.html' %}<script src="/static/features.js" defer></script></body>
+</html>

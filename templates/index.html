@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="/static/preferences.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiffin Manager Pro</title>
+    <script src="/static/vendor/tailwind-3.4.17.js"></script>
+    <script src="/static/vendor/chart-4.4.8.js"></script>
+    <script src="/static/vendor/lucide-0.468.0.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+    </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+<meta name="csrf-token" content="{{ csrf_token }}"><meta name="submission-token" content="{{ submission_token() }}"><script src="{{ url_for('static', filename='app.js') }}"></script><link rel="stylesheet" href="/static/features.css"></head>
+<body class="flex h-screen text-slate-800">
+
+    {% include 'sidebar.html' %}
+
+    <main class="flex-1 flex flex-col overflow-y-auto">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+    <div class="flex items-center">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="ESIC Logo" class="w-8 h-8 mr-3 object-contain">
+        <h1 class="text-xl font-semibold tracking-tight text-slate-800">ESIC SRO Ernakulam</h1>
+    </div>
+    
+    <form action="/download-pdf" method="GET" class="flex items-center gap-3">
+        <label class="text-sm font-medium text-slate-600">Select Month:</label>
+        <div class="relative">
+            <i data-lucide="calendar" class="w-4 h-4 text-indigo-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+            <input type="month" name="month" id="masterPdfMonth" required
+                   class="pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors cursor-pointer">
+        </div>
+
+        <button type="submit" class="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-4 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-indigo-700 hover:to-indigo-800 flex items-center font-medium text-sm transition-all">
+            <i data-lucide="download" class="w-4 h-4 mr-2"></i> Generate Master PDF
+        </button>
+    </form>
+</header>
+<div class="p-8 dashboard-content">
+
+   <div class="dashboard-toolbar flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6">
+                <div>
+                    <h1 class="text-xl font-bold text-slate-900">Dashboard Insights</h1>
+                    <p class="text-sm text-slate-500">Currently viewing data for: <strong class="text-indigo-600">{{ display_month_name }}</strong></p>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <!-- NEW: Balance Sheet Download Button -->
+                    <a href="/download-balance-sheet?month={{ target_month }}" class="inline-flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg font-medium hover:bg-indigo-100 transition-colors shadow-sm text-sm">
+                        <i data-lucide="file-text" class="w-4 h-4 mr-2"></i> Balance Sheet PDF
+                    </a>
+    
+                    <div class="flex items-center space-x-2 border-l border-slate-200 pl-4">
+                        <label class="text-sm font-medium text-slate-700">Filter Month:</label>
+                        <div class="relative">
+                            <i data-lucide="calendar-days" class="w-4 h-4 text-indigo-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                            <select onchange="window.location.href='/?month='+this.value" class="appearance-none pl-9 pr-9 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-semibold text-slate-700 bg-white shadow-sm hover:border-indigo-300 transition-colors cursor-pointer">
+                                {% for m in available_months_display %}
+                                    <option value="{{ m.value }}" {% if m.value == target_month %}selected{% endif %}>{{ m.label }}</option>
+                                {% endfor %}
+                            </select>
+                            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="bg-indigo-600 rounded-xl border border-indigo-700 shadow-sm p-6 text-white flex flex-col justify-between">
+                    <div>
+                        <h2 class="text-indigo-100 text-sm font-medium uppercase tracking-wider mb-2">Available Funds (Net)</h2>
+                        <div class="flex items-baseline">
+                            <span class="text-3xl font-bold">₹{{ "%.2f"|format(funds) }}</span>
+                        </div>
+                        <p class="text-indigo-200 text-xs mt-2 flex items-center">
+                            <i data-lucide="wallet" class="w-4 h-4 mr-1"></i> Global cash-in-hand
+                        </p>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-indigo-500/50 flex space-x-2">
+                        <a href="/download-balance-sheet?month={{ target_month }}" class="flex-1 flex items-center justify-center bg-white text-indigo-700 hover:bg-indigo-50 px-2 py-2 rounded-lg text-xs font-medium transition-colors shadow-sm" title="PDF Balance Sheet">
+                            <i data-lucide="file-text" class="w-4 h-4 mr-1"></i> PDF
+                        </a>
+                        <a href="/download-excel?month={{ target_month }}" class="flex-1 flex items-center justify-center bg-emerald-500 text-white hover:bg-emerald-600 px-2 py-2 rounded-lg text-xs font-medium transition-colors shadow-sm" title="Excel Audit Export">
+                            <i data-lucide="table" class="w-4 h-4 mr-1"></i> Excel
+                        </a>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-start">
+                    <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wider mb-2">Collection Inflow</h3>
+                    <div class="flex items-baseline">
+                        <span class="text-3xl font-bold text-slate-900">₹{{ "%.2f"|format(month_total_inflow) }}</span>
+                    </div>
+
+                    <!-- Breakdown of the total above, same two sources as the Payments Ledger -->
+                    <div class="mt-3 pt-3 border-t border-slate-100 space-y-1.5">
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-slate-500 flex items-center">
+                                <i data-lucide="user-check" class="w-3.5 h-3.5 mr-1.5 text-indigo-500"></i> Staff Bill Payments
+                            </span>
+                            <span class="font-semibold text-indigo-600">₹{{ "%.2f"|format(month_staff_payments) }}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-slate-500 flex items-center">
+                                <i data-lucide="coins" class="w-3.5 h-3.5 mr-1.5 text-emerald-500"></i> Misc. Income
+                            </span>
+                            <span class="font-semibold text-emerald-600">₹{{ "%.2f"|format(month_misc_income) }}</span>
+                        </div>
+                    </div>
+
+                    <p class="text-emerald-500 text-sm font-medium mt-3 flex items-center">
+                        <i data-lucide="arrow-up-right" class="w-4 h-4 mr-1"></i> Total inflow in {{ display_month_name }}
+                    </p>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-start">
+                    <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wider mb-2">Canteen Expenses</h3>
+                    <div class="flex items-baseline">
+                        <span class="text-3xl font-bold text-slate-900">₹{{ "%.2f"|format(expenses) }}</span>
+                    </div>
+                    <p class="text-rose-500 text-sm font-medium mt-2 flex items-center">
+                        <i data-lucide="arrow-down-right" class="w-4 h-4 mr-1"></i> Purchases in {{ display_month_name }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Opening & Closing Balance for the selected month -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-start border-l-4 {% if month_opening_balance < 0 %}border-l-rose-500{% else %}border-l-emerald-500{% endif %}">
+                    <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wider mb-2">Opening Balance</h3>
+                    <div class="flex items-baseline">
+                        <span class="text-3xl font-bold {% if month_opening_balance < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">
+                            {% if month_opening_balance < 0 %}-{% endif %}₹{{ "%.2f"|format(month_opening_balance|abs) }}
+                        </span>
+                    </div>
+                    <p class="text-slate-400 text-sm font-medium mt-2 flex items-center">
+                        <i data-lucide="{% if month_opening_balance < 0 %}alert-triangle{% else %}wallet{% endif %}" class="w-4 h-4 mr-1 {% if month_opening_balance < 0 %}text-rose-500{% else %}text-emerald-500{% endif %}"></i>
+                        As of 1st of {{ display_month_name }}
+                    </p>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-start border-l-4 {% if month_closing_balance < 0 %}border-l-rose-500{% else %}border-l-emerald-500{% endif %}">
+                    <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wider mb-2">Closing Balance</h3>
+                    <div class="flex items-baseline">
+                        <span class="text-3xl font-bold {% if month_closing_balance < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">
+                            {% if month_closing_balance < 0 %}-{% endif %}₹{{ "%.2f"|format(month_closing_balance|abs) }}
+                        </span>
+                    </div>
+                    <p class="text-slate-400 text-sm font-medium mt-2 flex items-center">
+                        <i data-lucide="{% if month_closing_balance < 0 %}alert-triangle{% else %}wallet{% endif %}" class="w-4 h-4 mr-1 {% if month_closing_balance < 0 %}text-rose-500{% else %}text-emerald-500{% endif %}"></i>
+                        As of end of {{ display_month_name }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- This Month vs Last Month -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-6">
+                <h2 class="text-sm font-semibold text-slate-900 mb-4 flex items-center">
+                    <i data-lucide="git-compare" class="w-4 h-4 mr-2 text-indigo-500"></i>
+                    {{ display_month_name }} vs {{ month_comparison.prev_month_name }}
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {% for row in [
+                        {"label": "Collections", "current": month_comparison.collections, "delta": month_comparison.collections_delta, "pct": month_comparison.collections_pct, "good_if": "up"},
+                        {"label": "Expenses", "current": month_comparison.expenses, "delta": month_comparison.expenses_delta, "pct": month_comparison.expenses_pct, "good_if": "down"},
+                        {"label": "Net Position", "current": month_comparison.net, "delta": month_comparison.net_delta, "pct": month_comparison.net_pct, "good_if": "up"}
+                    ] %}
+                    <div class="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                        <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">{{ row.label }}</p>
+                        <p class="text-xl font-bold text-slate-800 mb-1">₹{{ "%.2f"|format(row.current) }}</p>
+                        {% if row.pct is none %}
+                        <p class="text-xs text-slate-400">No data last month to compare</p>
+                        {% else %}
+                        {% set is_increase = row.delta > 0.005 %}
+                        {% set is_decrease = row.delta < -0.005 %}
+                        {% set is_good = (is_increase and row.good_if == 'up') or (is_decrease and row.good_if == 'down') %}
+                        <p class="text-xs font-semibold flex items-center {% if is_increase or is_decrease %}{% if is_good %}text-emerald-600{% else %}text-rose-600{% endif %}{% else %}text-slate-400{% endif %}">
+                            {% if is_increase %}<i data-lucide="arrow-up-right" class="w-3.5 h-3.5 mr-1"></i>
+                            {% elif is_decrease %}<i data-lucide="arrow-down-right" class="w-3.5 h-3.5 mr-1"></i>
+                            {% else %}<i data-lucide="minus" class="w-3.5 h-3.5 mr-1"></i>
+                            {% endif %}
+                            {{ "%.1f"|format(row.pct|abs) }}% vs last month
+                        </p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-start">
+                    <div class="flex justify-between items-end mb-2">
+                        <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wider">Collection Recovery Rate <span class="normal-case font-normal text-slate-400">({{ prev_month_label }}'s bill)</span></h3>
+                        <span class="text-2xl font-bold text-slate-800">{{ recovery_rate }}%</span>
+                    </div>
+                    
+                    <div class="w-full bg-slate-100 rounded-full h-2.5 mb-2 overflow-hidden border border-slate-200">
+                        <div class="bg-emerald-500 h-2.5 rounded-full" style="width: {{ recovery_rate }}%"></div>
+                    </div>
+                    
+                    <div class="flex justify-between text-xs text-slate-500">
+                        <span>Collected So Far: <strong class="text-emerald-600">₹{{ "%.2f"|format(collected_toward_prev_month) }}</strong></span>
+                        <span>{{ prev_month_label }} Bill: <strong>₹{{ "%.2f"|format(prev_month_billed) }}</strong></span>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+    <div class="flex justify-between items-center mb-4">
+        <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wider">Weekly Grocery Budget</h3>
+        <span class="text-xs font-semibold bg-blue-50 text-blue-700 px-2 py-1 rounded">Avg: ₹{{ "%.2f"|format(avg_weekly_grocery) }}/wk</span>
+    </div>
+    
+    <!-- Grid is 5 cols when Week 5 applies for this month, else 4 -->
+    <div class="grid {{ 'grid-cols-5' if week5_applicable else 'grid-cols-4' }} gap-2 text-center">
+        <div class="bg-slate-50 p-2 rounded border border-slate-100">
+            <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Week 1</p>
+            <p class="text-sm font-semibold text-slate-700">₹{{ "%.0f"|format(week_totals[0]) }}</p>
+        </div>
+        <div class="bg-slate-50 p-2 rounded border border-slate-100">
+            <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Week 2</p>
+            <p class="text-sm font-semibold text-slate-700">₹{{ "%.0f"|format(week_totals[1]) }}</p>
+        </div>
+        <div class="bg-slate-50 p-2 rounded border border-slate-100">
+            <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Week 3</p>
+            <p class="text-sm font-semibold text-slate-700">₹{{ "%.0f"|format(week_totals[2]) }}</p>
+        </div>
+        <div class="bg-slate-50 p-2 rounded border border-slate-100">
+            <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Week 4</p>
+            <p class="text-sm font-semibold text-slate-700">₹{{ "%.0f"|format(week_totals[3]) }}</p>
+        </div>
+        <!-- Week 5: only rendered when this month actually has a 5th Mon-Fri week -->
+        {% if week5_applicable %}
+        <div class="bg-blue-50/30 p-2 rounded border border-blue-100">
+            <p class="text-[10px] text-blue-400 font-bold uppercase mb-1">Week 5</p>
+            <p class="text-sm font-semibold text-blue-700">₹{{ "%.0f"|format(week_totals[4]) }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-base font-semibold text-slate-900 flex items-center">
+                        <i data-lucide="alert-triangle" class="w-5 h-5 mr-2 text-rose-500"></i> Outstanding Dues Leaderboard <span class="text-xs font-normal text-slate-400 ml-2">(as of {{ prev_month_label }}'s close)</span>
+                    </h2>
+
+                    {% if top_debtors %}
+                    <span class="bg-rose-100 text-rose-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center border border-rose-200 shadow-sm">
+                        <i data-lucide="users" class="w-3.5 h-3.5 mr-1"></i> {{ top_debtors|length }} Pending
+                    </span>
+                    {% else %}
+                    <span class="bg-emerald-100 text-emerald-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center border border-emerald-200 shadow-sm">
+                        <i data-lucide="check-circle" class="w-3.5 h-3.5 mr-1"></i> All Clear
+                    </span>
+                    {% endif %}
+                </div>
+
+                {% if top_debtors %}
+                <div class="space-y-3">
+                    {% for debtor in top_debtors %}
+                    <div class="debtor-row flex items-center gap-4">
+                        <div class="w-6 h-6 shrink-0 rounded-full bg-slate-100 text-slate-500 text-xs font-bold flex items-center justify-center">{{ loop.index }}</div>
+
+                        <div class="w-36 shrink-0">
+                            <p class="text-sm font-semibold text-slate-800 truncate">{{ debtor.name }}</p>
+                            <p class="text-[11px] text-slate-500 uppercase tracking-wide truncate">{{ debtor.department }}</p>
+                        </div>
+
+                        <div class="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                            <div class="bg-rose-500 h-2.5 rounded-full" style="width: {{ (debtor.due / top_debtors[0].due * 100) if top_debtors[0].due else 0 }}%"></div>
+                        </div>
+
+                        <p class="w-24 shrink-0 text-right text-sm font-bold text-rose-600">₹{{ "%.2f"|format(debtor.due) }}</p>
+
+                        <a href="/billing" class="shrink-0 text-slate-400 hover:text-indigo-600 p-1 rounded hover:bg-indigo-50 transition-colors" title="Go to Billing">
+                            <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="mt-4 pt-4 border-t border-slate-100 text-right">
+                    <a href="/billing" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 inline-flex items-center">
+                        View Full Billing Ledger <i data-lucide="arrow-right" class="w-3.5 h-3.5 ml-1"></i>
+                    </a>
+                </div>
+                {% else %}
+                <div class="text-center py-8">
+                    <i data-lucide="party-popper" class="w-8 h-8 text-emerald-400 mx-auto mb-2"></i>
+                    <p class="text-sm text-slate-500">No outstanding dues right now. Everyone's settled up!</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Expense Item Trend: last 6 months for a selected category -->
+            {% if expense_trend_categories|length > 0 %}
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-6">
+                <div class="flex items-center justify-between flex-wrap gap-4 mb-4">
+                    <h2 class="text-base font-semibold text-slate-900 flex items-center">
+                        <i data-lucide="trending-up" class="w-4 h-4 mr-2 text-indigo-500"></i> Expense Trend (Last 6 Months)
+                    </h2>
+                    <div class="relative">
+                        <i data-lucide="tag" class="w-4 h-4 text-indigo-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                        <select id="expenseTrendCategorySelect" onchange="loadExpenseTrend(this.value)" class="appearance-none pl-9 pr-9 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 bg-white shadow-sm hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+                            {% for cat in expense_trend_categories %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                    </div>
+                </div>
+                <div class="relative h-72 w-full">
+                    <canvas id="expenseTrendChart"></canvas>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Outstanding Staff Loans (cash owed BACK to staff, opposite direction of Dues) -->
+            {% if total_outstanding_loans and total_outstanding_loans > 0 %}
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-6 border-l-4 border-l-amber-500">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mr-4">
+                            <i data-lucide="hand-coins" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-sm font-semibold text-slate-900">Cash Owed Back to Staff</h2>
+                            <p class="text-xs text-slate-500">{{ outstanding_loan_count }} outstanding staff loan(s) — remember to settle these</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-2xl font-bold text-amber-600">₹{{ "%.2f"|format(total_outstanding_loans) }}</p>
+                        <a href="/staff-loans" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 inline-flex items-center">
+                            View Staff Loans <i data-lucide="arrow-right" class="w-3.5 h-3.5 ml-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                    <h2 class="text-base font-semibold text-slate-900 mb-4">Item Consumption ({{ display_month_name }})</h2>
+                    <div class="relative h-64 w-full">
+                        <canvas id="consumptionChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                    <h2 class="text-base font-semibold text-slate-900 mb-4">Expense Breakdown ({{ display_month_name }})</h2>
+                    <div class="relative h-64 w-full">
+                        <canvas id="expenseChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-6 mt-6">
+                <h2 class="text-base font-semibold text-slate-900 mb-4">Cash Flow Trends (Last 6 Months)</h2>
+                <div class="relative h-72 w-full">
+                    <canvas id="plChart"></canvas>
+                </div>
+            </div>
+
+        </div> </main>
+
+    <script>
+        lucide.createIcons();
+
+        // Pre-fill the Master PDF month picker with whatever month is currently
+        // being viewed, so it never shows a blank/empty-looking picker.
+        const masterPdfMonthInput = document.getElementById('masterPdfMonth');
+        if (masterPdfMonthInput) {
+            masterPdfMonthInput.value = "{{ target_month }}";
+        }
+
+        // Parse data safely for VS Code
+        const plLabels = {{ labels_pl | tojson }};
+        const plInflow = {{ data_in | tojson }};
+        const plOutflow = {{ data_out | tojson }};
+        
+        const itemLabels = {{ labels_items | tojson }};
+        const itemData = {{ data_items | tojson }};
+        const itemAmounts = {{ data_items_amount | tojson }};
+
+        const expLabels = {{ labels_categories | tojson }};
+        const expData = {{ data_categories | tojson }};
+        const expDetails = {{ category_details | tojson }};
+
+        // Render P&L Line Chart
+        const plCanvas = document.getElementById('plChart');
+        const plCtx = plCanvas.getContext('2d');
+        const inGradient = plCtx.createLinearGradient(0, 0, 0, 280);
+        inGradient.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
+        inGradient.addColorStop(1, 'rgba(16, 185, 129, 0.02)');
+        const outGradient = plCtx.createLinearGradient(0, 0, 0, 280);
+        outGradient.addColorStop(0, 'rgba(244, 63, 94, 0.30)');
+        outGradient.addColorStop(1, 'rgba(244, 63, 94, 0.02)');
+
+        new Chart(plCanvas, {
+            type: 'line',
+            data: {
+                labels: plLabels,
+                datasets: [
+                    { label: 'Collections (In)', data: plInflow, borderColor: '#10b981', backgroundColor: inGradient, borderWidth: 2.5, tension: 0.35, fill: true, pointRadius: 4, pointBackgroundColor: '#10b981', pointBorderColor: '#fff', pointBorderWidth: 2, pointHoverRadius: 6 },
+                    { label: 'Expenses (Out)', data: plOutflow, borderColor: '#f43f5e', backgroundColor: outGradient, borderWidth: 2.5, tension: 0.35, fill: true, pointRadius: 4, pointBackgroundColor: '#f43f5e', pointBorderColor: '#fff', pointBorderWidth: 2, pointHoverRadius: 6 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', padding: 20, font: { size: 12, weight: '500' } } },
+                    tooltip: {
+                        backgroundColor: '#1e293b', padding: 12, cornerRadius: 8, titleFont: { weight: '600' },
+                        callbacks: { label: (ctx) => `${ctx.dataset.label}: ₹${ctx.parsed.y.toLocaleString('en-IN', {minimumFractionDigits: 2})}` }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { callback: (v) => '₹' + v.toLocaleString('en-IN') } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // Distinct color palette so each bar/category is visually distinguishable
+        const chartPalette = ['#6366f1', '#f59e0b', '#10b981', '#ec4899', '#0ea5e9', '#8b5cf6', '#f43f5e', '#14b8a6'];
+        function paletteFor(n) { return Array.from({length: n}, (_, i) => chartPalette[i % chartPalette.length]); }
+
+        // Small plugin: draws the value on top of each bar
+        const valueLabelPlugin = {
+            id: 'valueLabelPlugin',
+            afterDatasetsDraw(chart) {
+                const { ctx } = chart;
+                chart.data.datasets.forEach((dataset, di) => {
+                    const meta = chart.getDatasetMeta(di);
+                    meta.data.forEach((bar, i) => {
+                        const value = dataset.data[i];
+                        if (value === undefined || value === null) return;
+                        ctx.save();
+                        ctx.fillStyle = '#475569';
+                        ctx.font = '600 11px Inter, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(dataset._isCurrency ? '₹' + value.toLocaleString('en-IN') : value, bar.x, bar.y - 8);
+                        ctx.restore();
+                    });
+                });
+            }
+        };
+
+        // Consumption chart shows TWO numbers per bar: quantity (bold) and
+        // total amount spent on that item (smaller, below it) -- a
+        // dedicated plugin so the shared valueLabelPlugin used elsewhere
+        // isn't affected.
+        const consumptionValueLabelPlugin = {
+            id: 'consumptionValueLabelPlugin',
+            afterDatasetsDraw(chart) {
+                const { ctx } = chart;
+                const meta = chart.getDatasetMeta(0);
+                meta.data.forEach((bar, i) => {
+                    const qty = itemData[i];
+                    const amt = itemAmounts[i] || 0;
+                    if (qty === undefined || qty === null) return;
+                    ctx.save();
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = '#475569';
+                    ctx.font = '700 11px Inter, sans-serif';
+                    ctx.fillText(`${qty}`, bar.x, bar.y - 18);
+                    ctx.fillStyle = '#6366f1';
+                    ctx.font = '600 9px Inter, sans-serif';
+                    ctx.fillText(`₹${amt.toLocaleString('en-IN')}`, bar.x, bar.y - 6);
+                    ctx.restore();
+                });
+            }
+        };
+
+        // Render Consumption Bar Chart
+        new Chart(document.getElementById('consumptionChart'), {
+            type: 'bar',
+            data: {
+                labels: itemLabels,
+                datasets: [{
+                    label: 'Total Quantity',
+                    data: itemData,
+                    backgroundColor: paletteFor(itemLabels.length),
+                    borderRadius: 6,
+                    maxBarThickness: 56
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                layout: { padding: { top: 22 } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1e293b', padding: 10, cornerRadius: 8,
+                        callbacks: {
+                            label: (ctx) => {
+                                const amt = itemAmounts[ctx.dataIndex] || 0;
+                                return [`${ctx.parsed.y} servings`, `₹${amt.toLocaleString('en-IN', {minimumFractionDigits: 2})} total`];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { precision: 0 } },
+                    x: { grid: { display: false }, ticks: { font: { weight: '500' } } }
+                }
+            },
+            plugins: [consumptionValueLabelPlugin]
+        });
+
+
+        // --- Expense Breakdown hover: full itemised list of that category ---
+        function expenseTooltip(context) {
+            let el = document.getElementById('expenseTooltip');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'expenseTooltip';
+                el.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;background:#1e293b;color:#fff;border-radius:10px;padding:12px 14px;font:12px Inter,sans-serif;box-shadow:0 10px 25px rgba(0,0,0,.3);transition:opacity .1s;max-width:96vw;';
+                document.body.appendChild(el);
+            }
+            const tip = context.tooltip;
+            if (tip.opacity === 0) { el.style.opacity = 0; return; }
+
+            const label = tip.title[0] || '';
+            const idx = tip.dataPoints[0].dataIndex;
+            const total = Number(expData[idx]) || 0;
+            const rows = expDetails[label] || [];
+            const money = (n) => '₹' + Number(n).toLocaleString('en-IN', {minimumFractionDigits: 2});
+            const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+            const PER_COL = 16;
+            const cols = Math.min(3, Math.max(1, Math.ceil(rows.length / PER_COL)));
+            const items = rows.map(r => {
+                const what = [r[1], r[2] && r[2] !== 'General' ? '(' + r[2] + ')' : ''].filter(Boolean).join(' ');
+                return '<div style="display:flex;justify-content:space-between;gap:14px;padding:1px 0;break-inside:avoid;">' +
+                       '<span><span style="color:#94a3b8">' + esc(r[0]) + '</span>&nbsp; ' + esc(what) + '</span>' +
+                       '<b style="white-space:nowrap">' + money(r[3]) + '</b></div>';
+            }).join('');
+
+            el.innerHTML =
+                '<div style="font-weight:700;font-size:13px;">' + esc(label) + '</div>' +
+                '<div style="margin:2px 0 8px;color:#a5b4fc;">Total: <b>' + money(total) + '</b>' +
+                (rows.length ? ' &middot; ' + rows.length + ' purchase(s)' : '') + '</div>' +
+                '<div style="column-count:' + cols + ';column-gap:28px;min-width:' + (cols === 1 ? 280 : 260 * cols) + 'px;">' + items + '</div>';
+
+            // Position near the bar, kept fully inside the window
+            const r = context.chart.canvas.getBoundingClientRect();
+            el.style.opacity = 1;
+            const w = el.offsetWidth, h = el.offsetHeight;
+            let x = r.left + tip.caretX + 14;
+            let y = r.top + tip.caretY - h / 2;
+            if (x + w > window.innerWidth - 8) x = r.left + tip.caretX - w - 14;
+            x = Math.max(8, Math.min(x, window.innerWidth - w - 8));
+            y = Math.max(8, Math.min(y, window.innerHeight - h - 8));
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+        }
+
+        // Render Expense Category Bar Chart
+        new Chart(document.getElementById('expenseChart'), {
+            type: 'bar',
+            data: {
+                labels: expLabels,
+                datasets: [{
+                    label: 'Amount Spent (₹)',
+                    data: expData,
+                    _isCurrency: true,
+                    backgroundColor: paletteFor(expLabels.length),
+                    borderRadius: 6,
+                    maxBarThickness: 56
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    // Custom HTML tooltip: Chart.js' built-in tooltip is clipped to the
+                    // small chart canvas, so a long purchase list got cut off.
+                    tooltip: { enabled: false, external: expenseTooltip }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { callback: (v) => '₹' + v.toLocaleString('en-IN') } },
+                    x: { grid: { display: false }, ticks: { font: { weight: '500' }, autoSkip: false, maxRotation: 20, minRotation: 0 } }
+                }
+            },
+            plugins: [valueLabelPlugin]
+        });
+
+        // --- Expense Item Trend chart: last 6 months for a selected category ---
+        let expenseTrendChartInstance = null;
+        async function loadExpenseTrend(category) {
+            const canvas = document.getElementById('expenseTrendChart');
+            if (!canvas || !category) return;
+            try {
+                const res = await fetch(`/api/expense-trend?category=${encodeURIComponent(category)}`);
+                const data = await res.json();
+
+                if (expenseTrendChartInstance) {
+                    expenseTrendChartInstance.destroy();
+                }
+                expenseTrendChartInstance = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: `${category} (₹)`,
+                            data: data.amounts,
+                            _isCurrency: true,
+                            backgroundColor: paletteFor(data.labels.length),
+                            borderRadius: 6,
+                            maxBarThickness: 64
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { backgroundColor: '#1e293b', padding: 10, cornerRadius: 8, callbacks: { label: (ctx) => `₹${ctx.parsed.y.toLocaleString('en-IN', {minimumFractionDigits: 2})}` } }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { callback: (v) => '₹' + v.toLocaleString('en-IN') } },
+                            x: { grid: { display: false }, ticks: { font: { weight: '500' } } }
+                        }
+                    },
+                    plugins: [valueLabelPlugin]
+                });
+            } catch (e) {
+                console.error('Failed to load expense trend:', e);
+            }
+        }
+        const expenseTrendSelect = document.getElementById('expenseTrendCategorySelect');
+        if (expenseTrendSelect && expenseTrendSelect.value) {
+            loadExpenseTrend(expenseTrendSelect.value);
+        }
+    </script>
+{% include 'features/command.html' %}<script src="/static/features.js" defer></script></body>
+</html>

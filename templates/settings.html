@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="/static/preferences.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Settings</title>
+    <script src="/static/vendor/tailwind-3.4.17.js"></script>
+    <script src="/static/vendor/lucide-0.468.0.js"></script>
+    <style>body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+<meta name="csrf-token" content="{{ csrf_token }}"><meta name="submission-token" content="{{ submission_token() }}"><script src="{{ url_for('static', filename='app.js') }}"></script><link rel="stylesheet" href="/static/features.css"></head>
+<body class="flex h-screen text-slate-800">
+
+    {% include 'sidebar.html' %}
+
+    <main class="flex-1 flex flex-col overflow-y-auto">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center px-8 shrink-0">
+            <h1 class="text-xl font-semibold">Administration & Settings</h1>
+        </header>
+
+        <div class="p-8 max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <div class="lg:col-span-2 mb-2">
+                <div class="bg-white rounded-xl border border-indigo-200 shadow-sm p-6 border-l-4 border-l-indigo-600">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-lg font-semibold text-slate-900 mb-1 flex items-center">
+                                <i data-lucide="building" class="w-5 h-5 mr-2 text-indigo-600"></i> Canteen Master Ledger
+                            </h2>
+                            <p class="text-sm text-slate-500">Set the initial opening cash balance for the physical canteen lockbox.</p>
+                        </div>
+                        <form action="/update-global-balance" method="POST" class="flex items-center space-x-3 shrink-0"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                            <label class="text-sm font-medium text-slate-700">Opening Balance:</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-2 text-slate-500">₹</span>
+                                <input type="number" step="0.50" name="canteen_opening_balance" value="{{ global_balance }}" class="w-32 border border-slate-300 rounded-lg pl-8 pr-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+                            <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">Update</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+                </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- NEW: Database Backup Card -->
+            <div class="lg:col-span-2 mb-2">
+                <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-semibold text-indigo-900 mb-1 flex items-center">
+                            <i data-lucide="database" class="w-5 h-5 mr-2"></i> Database Backup
+                        </h2>
+                        <p class="text-sm text-indigo-700">Download a secure copy of the live ledger. Do this weekly!</p>
+                    </div>
+                    <a href="/backup-db" class="inline-flex shrink-0 items-center px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm">
+                        <i data-lucide="download-cloud" class="w-4 h-4 mr-2"></i> Download Backup
+                    </a>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                
+                <!-- Administration Details Editor -->
+            <div class="space-y-6">
+                
+                <!-- Administration Details Editor -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                    <h2 class="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+                        <i data-lucide="users" class="w-5 h-5 mr-2 text-indigo-600"></i> Administration Details
+                    </h2>
+                    
+                    <form action="/update-leadership" method="POST" class="space-y-4"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Canteen Manager</label>
+                            <input type="text" name="manager_name" value="{{ canteen_manager }}" required class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Committee Members</label>
+                            <textarea name="committee_members" rows="2" class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">{{ committee_members }}</textarea>
+                            <p class="text-xs text-slate-500 mt-1">Separate names with commas. Leave blank to hide this section.</p>
+                        </div>
+                        
+                        <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm">
+                            Save Administration Details
+                        </button>
+                    </form>
+                </div>
+                
+            </div>
+
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-fit">
+                <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                    <h2 class="text-lg font-semibold text-slate-900 flex items-center">
+                        <i data-lucide="tag" class="w-5 h-5 mr-2 text-indigo-600"></i> Committee Rate List
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-1">Manage the canteen menu and active prices. Deleting an item will not affect past bills.</p>
+                </div>
+                
+                <div class="p-6 space-y-6">
+                    <form action="/add-item" method="POST" class="flex gap-3 bg-indigo-50/50 p-4 rounded-lg border border-indigo-100"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                        <input type="text" name="item_name" required placeholder="New Item (e.g. Coffee)" class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <div class="relative w-28 shrink-0">
+                            <span class="absolute left-3 top-2 text-slate-500">₹</span>
+                            <input type="number" name="price" step="0.50" required placeholder="10.00" class="w-full border border-slate-300 rounded-lg pl-7 pr-2 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shrink-0">Add Item</button>
+                    </form>
+
+                    <div class="space-y-3">
+                        {% for item in items %}
+                        <div class="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200 group">
+                            <div class="flex items-center gap-1 mr-2">
+                                <form action="/reorder-item" method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                                    <input type="hidden" name="item_id" value="{{ item[0] }}">
+                                    <input type="hidden" name="direction" value="up">
+                                    <button type="submit" {% if loop.first %}disabled{% endif %} class="text-slate-400 hover:text-indigo-600 p-0.5 disabled:opacity-20 disabled:cursor-not-allowed transition-colors" title="Move up">
+                                        <i data-lucide="chevron-up" class="w-4 h-4"></i>
+                                    </button>
+                                </form>
+                                <form action="/reorder-item" method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                                    <input type="hidden" name="item_id" value="{{ item[0] }}">
+                                    <input type="hidden" name="direction" value="down">
+                                    <button type="submit" {% if loop.last %}disabled{% endif %} class="text-slate-400 hover:text-indigo-600 p-0.5 disabled:opacity-20 disabled:cursor-not-allowed transition-colors" title="Move down">
+                                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                                    </button>
+                                </form>
+                            </div>
+                            <span class="font-medium text-slate-700 flex-1">{{ item[1] }}</span>
+                            
+                            <div class="flex items-center space-x-2">
+                                <form action="/update-price" method="POST" class="flex items-center"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                                    <span class="text-slate-500 text-sm mr-1">₹</span>
+                                    <input type="number" name="new_price" step="0.50" value="{{ item[2] }}" class="w-20 border border-slate-300 rounded px-2 py-1 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none text-right">
+                                    <input type="hidden" name="item_id" value="{{ item[0] }}">
+                                    <button type="submit" class="text-xs bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded hover:bg-slate-100 transition-colors font-medium ml-2">Update</button>
+                                </form>
+
+                                <div class="ml-2 border-l border-slate-200 pl-2">
+                                    <button type="button" onclick="openArchiveItemModal('{{ item[0] }}', '{{ item[1] }}')" class="text-slate-400 hover:text-amber-600 p-1.5 transition-colors" title="Archive Item">
+                                        <i data-lucide="archive" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% if archived_items %}
+            <div class="mt-8 pt-6 border-t border-slate-200">
+                <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center">
+                    <i data-lucide="archive-restore" class="w-4 h-4 mr-2"></i> Archived Items
+                </h3>
+                <div class="space-y-2 opacity-75">
+                    {% for item in archived_items %}
+                    <div class="flex items-center justify-between bg-slate-100 p-3 rounded-lg border border-slate-200">
+                        <span class="font-medium text-slate-500 line-through flex-1">{{ item[1] }}</span>
+                        <span class="text-xs text-slate-400 mr-4">₹{{ "%.2f"|format(item[2]) }}</span>
+                        
+                        <form action="/reactivate-item" method="POST" class="ml-2"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                            <input type="hidden" name="item_id" value="{{ item[0] }}">
+                            <button type="submit" class="text-xs bg-white border border-slate-300 text-emerald-600 px-3 py-1.5 rounded hover:bg-emerald-50 transition-colors font-medium flex items-center shadow-sm">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5 mr-1"></i> Restore
+                            </button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- NEW: Expense Category Management -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-fit mt-8">
+                <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                    <h2 class="text-lg font-semibold text-slate-900 flex items-center">
+                        <i data-lucide="tags" class="w-5 h-5 mr-2 text-indigo-600"></i> Expense Categories
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-1">Archiving a category never changes past purchase records — it only hides it from future entry forms.</p>
+                </div>
+                <div class="p-6 space-y-6">
+                    <form action="/add-category" method="POST" class="flex gap-3 bg-indigo-50/50 p-4 rounded-lg border border-indigo-100"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                        <input type="text" name="category_name" required placeholder="New Category (e.g. Cleaning Supplies)" class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shrink-0">Add Category</button>
+                    </form>
+
+                    <div class="space-y-3">
+                        {% for cat in categories %}
+                        <div class="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200 group">
+                            <form action="/edit-category" method="POST" class="flex-1 flex items-center gap-2"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                                <input type="hidden" name="category_id" value="{{ cat[0] }}">
+                                <input type="text" name="new_name" value="{{ cat[1] }}" class="flex-1 bg-transparent border-0 font-medium text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:bg-white rounded px-2 py-1 outline-none">
+                                <button type="submit" class="text-xs bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded hover:bg-slate-100 transition-colors font-medium opacity-0 group-hover:opacity-100 transition-opacity">Save</button>
+                            </form>
+                            <form action="/deactivate-category" method="POST" class="ml-2 border-l border-slate-200 pl-2"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                                <input type="hidden" name="category_id" value="{{ cat[0] }}">
+                                <button type="submit" class="text-slate-400 hover:text-amber-600 p-1.5 transition-colors" title="Archive Category">
+                                    <i data-lucide="archive" class="w-4 h-4"></i>
+                                </button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <p class="text-sm text-slate-400 italic text-center py-4">No categories yet.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% if archived_categories %}
+            <div class="mt-8 pt-6 border-t border-slate-200">
+                <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center">
+                    <i data-lucide="archive-restore" class="w-4 h-4 mr-2"></i> Archived Categories
+                </h3>
+                <div class="space-y-2 opacity-75">
+                    {% for cat in archived_categories %}
+                    <div class="flex items-center justify-between bg-slate-100 p-3 rounded-lg border border-slate-200">
+                        <span class="font-medium text-slate-500 line-through flex-1">{{ cat[1] }}</span>
+                        <form action="/reactivate-category" method="POST" class="ml-2"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                            <input type="hidden" name="category_id" value="{{ cat[0] }}">
+                            <button type="submit" class="text-xs bg-white border border-slate-300 text-emerald-600 px-3 py-1.5 rounded hover:bg-emerald-50 transition-colors font-medium flex items-center shadow-sm">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5 mr-1"></i> Restore
+                            </button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if price_history %}
+            <div class="mt-8 pt-6 border-t border-slate-200">
+                <button type="button" onclick="document.getElementById('priceHistoryPanel').classList.toggle('hidden')" class="w-full flex items-center justify-between text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 hover:text-slate-700 transition-colors">
+                    <span class="flex items-center"><i data-lucide="history" class="w-4 h-4 mr-2"></i> Price Change History</span>
+                    <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                </button>
+                <div id="priceHistoryPanel" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="max-h-64 overflow-y-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead class="sticky top-0 bg-slate-50 border-b border-slate-200">
+                                <tr class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                    <th class="px-4 py-2">Item</th>
+                                    <th class="px-4 py-2 text-right">Old Price</th>
+                                    <th class="px-4 py-2 text-right">New Price</th>
+                                    <th class="px-4 py-2 text-right">Change</th>
+                                    <th class="px-4 py-2">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for ph in price_history %}
+                                <tr>
+                                    <td class="px-4 py-2.5 font-medium text-slate-700">{{ ph[0] }}</td>
+                                    <td class="px-4 py-2.5 text-right text-slate-500">₹{{ "%.2f"|format(ph[1]) }}</td>
+                                    <td class="px-4 py-2.5 text-right font-semibold text-slate-800">₹{{ "%.2f"|format(ph[2]) }}</td>
+                                    <td class="px-4 py-2.5 text-right {% if ph[2] > ph[1] %}text-rose-600{% else %}text-emerald-600{% endif %} font-medium">
+                                        {% if ph[2] > ph[1] %}+{% endif %}₹{{ "%.2f"|format(ph[2] - ph[1]) }}
+                                    </td>
+                                    <td class="px-4 py-2.5 text-slate-500 text-xs">{{ ph[3] }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+
+    <!-- Archive Item Modal -->
+    <div id="archiveItemOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="archiveItemBox">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="archive-x" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Archive <span id="archive_item_name_display">Item</span>?</h3>
+                <p class="text-sm text-slate-500 mb-6">It will be removed from the daily logging menus, but past bills will stay intact.</p>
+                <form action="/deactivate-item" method="POST" class="flex space-x-3"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                    <input type="hidden" name="item_id" id="archive_item_id">
+                    <button type="button" onclick="closeModal('archiveItemOverlay', 'archiveItemBox')" class="flex-1 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+                    <button type="submit" class="flex-1 bg-amber-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-amber-600 transition-colors shadow-sm">Yes, Archive</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+       
+
+        function closeEditModal() {
+            const overlay = document.getElementById('editModalOverlay');
+            const box = document.getElementById('editModalBox');
+            
+            // Trigger the close animation
+            overlay.classList.add('opacity-0');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            
+            // Hide completely after animation finishes
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+
+        // Generic function to handle closing any of the warning modals
+        function closeModal(overlayId, boxId) {
+            const overlay = document.getElementById(overlayId);
+            const box = document.getElementById(boxId);
+            overlay.classList.add('opacity-0');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+
+        // Generic function to handle opening any of the warning modals
+        function openModal(overlayId, boxId) {
+            const overlay = document.getElementById(overlayId);
+            const box = document.getElementById(boxId);
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+            lucide.createIcons();
+        }
+
+        // Specific Triggers
+       
+        function openArchiveItemModal(id, name) {
+            document.getElementById('archive_item_id').value = id;
+            document.getElementById('archive_item_name_display').innerText = name;
+            openModal('archiveItemOverlay', 'archiveItemBox');
+        }
+        
+    </script>
+{% include 'features/command.html' %}<script src="/static/features.js" defer></script></body>
+</html>

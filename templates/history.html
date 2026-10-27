@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="/static/preferences.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ledger History</title>
+    <script src="/static/vendor/tailwind-3.4.17.js"></script>
+    <script src="/static/vendor/lucide-0.468.0.js"></script>
+    <style>body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+<meta name="csrf-token" content="{{ csrf_token }}"><meta name="submission-token" content="{{ submission_token() }}"><script src="{{ url_for('static', filename='app.js') }}"></script><link rel="stylesheet" href="/static/features.css"></head>
+<body class="flex h-screen text-slate-800">
+
+    {% include 'sidebar.html' %}
+
+    <main class="flex-1 flex flex-col overflow-y-auto w-full">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+            <h1 class="text-xl font-semibold">Ledger Audit & Corrections</h1>
+            
+            <!-- NEW: Month Dropdown -->
+            <div class="flex items-center space-x-3">
+                <label class="text-sm font-medium text-slate-700">Audit Month:</label>
+                <select onchange="window.location.href='/history?month='+this.value" class="border border-slate-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-700 bg-slate-50">
+                    {% for m in available_months %}
+                        <option value="{{ m }}" {% if m == target_month %}selected{% endif %}>{{ m }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </header>
+
+        <!-- CHANGED: Removed max-w constraints so table takes full width -->
+        <div class="p-8 w-full">
+            {% if moved_count is not none %}
+            <div class="mb-6 bg-green-50 text-green-700 p-4 rounded-lg flex items-center border border-green-200">
+                <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>
+                {% if moved_count > 0 %}
+                    Moved {{ moved_count }} entries to the corrected date successfully.
+                {% else %}
+                    No entries were found on that date — nothing was moved.
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- FIX A BULK ENTRY MISTAKE: move every log from one date to another in one shot -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-8">
+                <div class="px-6 py-4 border-b border-slate-200 bg-amber-50/60">
+                    <h2 class="text-base font-semibold text-slate-900 flex items-center">
+                        <i data-lucide="calendar-cog" class="w-5 h-5 mr-2 text-amber-600"></i> Fix a Bulk Entry Mistake
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-1">Wrong date selected on Bulk Month Entry? Move every entry logged on that date to the correct one — in a single click, no need to edit each row.</p>
+                </div>
+
+                <div class="p-6">
+                    <form id="moveDateForm" class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto] gap-4 items-end">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Wrong Date (move from)</label>
+                            <input type="date" id="moveOldDate" required class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                            <p id="moveOldDatePreview" class="text-xs text-slate-500 mt-1.5 h-4"></p>
+                        </div>
+
+                        <div class="hidden md:flex items-center justify-center pb-8 text-slate-400">
+                            <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Correct Date (move to)</label>
+                            <input type="date" id="moveNewDate" required class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                            <p class="text-xs text-slate-500 mt-1.5 h-4">Existing entries already on this date are kept, not overwritten.</p>
+                        </div>
+
+                        <button type="button" id="moveDateBtn" onclick="openMoveDateModal()" disabled class="bg-amber-600 text-white px-6 py-2.5 rounded-lg shadow-sm hover:bg-amber-700 font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center">
+                            <i data-lucide="move-right" class="w-4 h-4 mr-2"></i> Move Entries
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- MONTHLY VERIFICATION SUMMARY -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-8">
+                <div class="px-6 py-4 border-b border-slate-200 bg-indigo-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div>
+                        <h2 class="text-base font-semibold text-slate-900 flex items-center">
+                            <i data-lucide="clipboard-check" class="w-5 h-5 mr-2 text-indigo-600"></i> Monthly Verification Summary
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-1">A grouped overview of all entries logged in {{ display_month_name }}.</p>
+                    </div>
+                    <div class="flex items-center gap-3 shrink-0">
+                    <a href="/export-verification-summary?month={{ target_month }}" class="inline-flex items-center px-3 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors shadow-sm text-xs">
+                        <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 mr-1.5"></i> Export to Excel
+                    </a>
+                    <div class="bg-white border border-indigo-200 rounded-lg px-4 py-2 text-right shadow-sm shrink-0">
+                        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Working Days</p>
+                        <p class="text-xl font-bold text-indigo-700 leading-tight">{{ working_days }}</p>
+                    </div>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto max-h-[400px] overflow-y-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
+                            <tr class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                                <th class="px-6 py-3">Staff Name</th>
+                                {% for item in summary_items %}
+                                <th class="px-3 py-3 text-center whitespace-nowrap">{{ item }}</th>
+                                {% endfor %}
+                                <th class="px-6 py-3 text-right text-slate-700">Total Billed</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-sm">
+                            {% for rec in summary_records %}
+                            <tr class="hover:bg-indigo-50/30 transition-colors">
+                                <td class="px-6 py-3 font-medium text-slate-800">{{ rec.name }}</td>
+                                {% for item in summary_items %}
+                                <td class="px-3 py-3 text-center text-slate-500">{{ rec.food_qty.get(item, 0) if rec.food_qty.get(item, 0) > 0 else '-' }}</td>
+                                {% endfor %}
+                                <td class="px-6 py-3 text-right font-bold text-slate-900 bg-slate-50/50">₹{{ "%.2f"|format(rec.total) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="{{ summary_items|length + 2 }}" class="px-6 py-8 text-center text-slate-500 italic">
+                                    No meals have been logged for {{ display_month_name }} yet.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% if summary_records %}
+                        <tfoot class="sticky bottom-0 bg-indigo-50">
+                            <tr class="border-t-2 border-indigo-200 font-bold text-slate-900 text-sm">
+                                <td class="px-6 py-2 leading-tight">Total ({{ summary_records|length }} staff)<div class="text-xs font-normal text-slate-500">Amount (₹)</div></td>
+                                {% for item in summary_items %}
+                                <td class="px-3 py-2 text-center whitespace-nowrap leading-tight">
+                                    <div>{{ summary_totals.food_qty.get(item, 0) if summary_totals.food_qty.get(item, 0) > 0 else '-' }}</div>
+                                    <div class="text-xs font-medium text-indigo-600">{{ "%.0f"|format(summary_totals.food_amt.get(item, 0)) if summary_totals.food_amt.get(item, 0) > 0 else '' }}</div>
+                                </td>
+                                {% endfor %}
+                                <td class="px-6 py-2 text-right bg-indigo-100 text-base">₹{{ "%.2f"|format(summary_totals.total_amount) }}</td>
+                            </tr>
+                        </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+            <form id="bulkDeleteForm" action="/history?month={{ target_month }}" method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[750px] w-full">
+                    
+                    <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wider">Transactions for {{ display_month_name }}</h2>
+                        
+                        <div class="flex items-center space-x-3 w-full sm:w-auto justify-end flex-wrap gap-y-2">
+                            <!-- NEW: Select-by-date -- picking a date checks every row logged on it -->
+                            <div class="flex items-center space-x-2">
+                                <label for="selectByDate" class="text-xs font-medium text-slate-500 whitespace-nowrap">Select date:</label>
+                                <input type="date" id="selectByDate" onchange="selectRowsByDate()" class="border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm">
+                                <button type="button" onclick="clearDateSelection()" class="text-xs text-slate-400 hover:text-slate-600 underline whitespace-nowrap">clear</button>
+                            </div>
+
+                            <!-- NEW SEARCH BAR -->
+                            <div class="relative w-full sm:w-64">
+                                <i data-lucide="search" class="absolute left-3 top-2 w-4 h-4 text-slate-400"></i>
+                                <input type="text" id="ledgerSearch" onkeyup="filterLedger()" placeholder="Search staff..." class="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm">
+                            </div>
+
+                            <button type="button" id="bulkDeleteBtn" onclick="openBulkDeleteModal()" class="hidden items-center px-3 py-1.5 bg-rose-600 text-white rounded font-medium hover:bg-rose-700 transition-colors shadow-sm text-xs shrink-0">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5 mr-1.5"></i> Delete (<span id="selectedCount">0</span>)
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-y-auto flex-1">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="sticky top-0 bg-white shadow-sm z-10 border-b border-slate-200">
+                                <tr class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                    <th class="px-4 py-3 w-12 text-center">
+                                        <input type="checkbox" id="selectAll" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                                    </th>
+                                    <th class="px-4 py-3">Date</th>
+                                    <th class="px-4 py-3">Staff Member</th>
+                                    <th class="px-4 py-3">Item</th>
+                                    <th class="px-4 py-3 text-center">Qty</th>
+                                    <th class="px-4 py-3 text-right">Total Amount</th>
+                                    <th class="px-4 py-3 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-sm">
+                                {% for log in logs %}
+                                <!-- ADDED 'ledger-row' HERE -->
+                                <tr class="hover:bg-slate-50 transition-colors group ledger-row" data-raw-date="{{ log[1] }}">
+                                    <td class="px-4 py-3 text-center">
+                                        <input type="checkbox" name="delete_ids" value="{{ log[0] }}" class="log-checkbox rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                                    </td>
+                                    <td class="px-4 py-4 text-slate-600 whitespace-nowrap">{{ log[7] }}</td>
+                                    <!-- ADDED 'ledger-staff-name' HERE -->
+                                    <td class="px-4 py-4 font-medium text-slate-900 ledger-staff-name">{{ log[2] }}</td>
+                                    <td class="px-4 py-4 text-slate-600">{{ log[3] }} (₹{{ "%.2f"|format(log[5]) }})</td>
+                                    <td class="px-4 py-4 text-center font-medium">{{ log[4] }}</td>
+                                    <td class="px-4 py-4 text-right font-semibold text-rose-600">₹{{ "%.2f"|format(log[6]) }}</td>
+                                    <td class="px-4 py-4">
+                                        <div class="flex items-center justify-center space-x-2">
+                                            <!-- Edit Button -->
+                                            <button type="button" onclick="openEditLogModal('{{ log[0] }}', '{{ log[1] }}', '{{ log[4] }}', '{{ log[2] }}', '{{ log[3] }}')" class="text-slate-400 hover:text-blue-600 p-1.5 rounded hover:bg-blue-50 transition-colors" title="Edit Log">
+                                                <i data-lucide="edit-2" class="w-4 h-4"></i>
+                                            </button>
+                                            
+                                            <!-- Delete Button -->
+                                            <button type="button" onclick="openSingleDeleteModal('{{ log[0] }}')" class="text-slate-400 hover:text-rose-600 p-1.5 rounded hover:bg-rose-50 transition-colors" title="Delete Log">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="px-6 py-8 text-center text-slate-500 italic">No history records found for this month.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div id="bulkDeleteModalOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="bulkDeleteModalBox">
+                        <div class="p-6 text-center">
+                            <div class="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4">
+                                <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-slate-900 mb-2">Delete <span id="modalSelectedCount">0</span> Records?</h3>
+                            <p class="text-sm text-slate-500 mb-6">Are you sure you want to permanently delete these selected meal logs? The staff bills will be recalculated automatically.</p>
+                            
+                            <div class="flex space-x-3">
+                                <button type="button" onclick="closeModal('bulkDeleteModalOverlay', 'bulkDeleteModalBox')" class="flex-1 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+                                <button type="submit" class="flex-1 bg-rose-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-rose-700 transition-colors shadow-sm">Yes, Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            
+        </div>
+    </main>
+    <!-- Edit Log Modal -->
+    <div id="editLogModalOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="editLogModalBox">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                <h3 class="font-semibold text-slate-800 flex items-center">
+                    <i data-lucide="edit-2" class="w-4 h-4 mr-2 text-indigo-600"></i> Edit Meal Log
+                </h3>
+                <button type="button" onclick="closeModal('editLogModalOverlay', 'editLogModalBox')" class="text-slate-400 hover:text-rose-500 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <form action="/edit-log" method="POST" class="space-y-4"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                    <input type="hidden" name="log_id" id="edit_log_id">
+                    <input type="hidden" name="target_month" value="{{ target_month }}">
+                    
+                    <div class="bg-indigo-50/50 border border-indigo-100 rounded-lg p-3">
+                        <p class="text-sm font-bold text-slate-900" id="edit_log_staff"></p>
+                        <p class="text-xs text-slate-500 mt-0.5" id="edit_log_item"></p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Date</label>
+                        <input type="date" name="new_date" id="edit_log_date" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Quantity</label>
+                        <input type="number" name="new_qty" id="edit_log_qty" min="1" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    
+                    <div class="pt-2 flex space-x-3">
+                        <button type="button" onclick="closeModal('editLogModalOverlay', 'editLogModalBox')" class="flex-1 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+                        <button type="submit" class="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- Move Date Confirmation Modal -->
+    <div id="moveDateModalOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="moveDateModalBox">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="calendar-cog" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Move <span id="moveModalCount">0</span> Entries?</h3>
+                <p class="text-sm text-slate-500 mb-1">
+                    This will move <strong id="moveModalCount2">0</strong> entries (₹<span id="moveModalTotal">0.00</span>)
+                    from <strong id="moveModalOldDate"></strong> to <strong id="moveModalNewDate"></strong>.
+                </p>
+                <p class="text-xs text-slate-400 mb-6">Bills for both months will recalculate automatically.</p>
+
+                <form action="/move-log-date" method="POST" class="flex space-x-3"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                    <input type="hidden" name="old_date" id="move_old_date_input">
+                    <input type="hidden" name="new_date" id="move_new_date_input">
+                    <input type="hidden" name="target_month" value="{{ target_month }}">
+                    <button type="button" onclick="closeModal('moveDateModalOverlay', 'moveDateModalBox')" class="flex-1 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+                    <button type="submit" class="flex-1 bg-amber-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-amber-700 transition-colors shadow-sm">Yes, Move Them</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="singleDeleteModalOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="singleDeleteModalBox">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="alert-octagon" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Delete Record?</h3>
+                <p class="text-sm text-slate-500 mb-6">Are you sure you want to delete this specific meal log?</p>
+                <!-- Form points back to the current month after delete -->
+                <form action="/history?month={{ target_month }}" method="POST" class="flex space-x-3"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                    <input type="hidden" name="delete_id" id="single_delete_id">
+                    <button type="button" onclick="closeModal('singleDeleteModalOverlay', 'singleDeleteModalBox')" class="flex-1 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+                    <button type="submit" class="flex-1 bg-rose-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-rose-700 transition-colors shadow-sm">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const selectAllCheckbox = document.getElementById('selectAll');
+        const checkboxes = document.querySelectorAll('.log-checkbox');
+        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+        const selectedCountSpan = document.getElementById('selectedCount');
+        const modalSelectedCountSpan = document.getElementById('modalSelectedCount');
+
+        function updateBulkButton() {
+            const checkedCount = document.querySelectorAll('.log-checkbox:checked').length;
+            selectedCountSpan.innerText = checkedCount;
+            modalSelectedCountSpan.innerText = checkedCount;
+            
+            if (checkedCount > 0) {
+                bulkDeleteBtn.classList.remove('hidden');
+                bulkDeleteBtn.classList.add('inline-flex');
+            } else {
+                bulkDeleteBtn.classList.add('hidden');
+                bulkDeleteBtn.classList.remove('inline-flex');
+                selectAllCheckbox.checked = false;
+            }
+        }
+
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function() {
+                checkboxes.forEach(cb => cb.checked = this.checked);
+                updateBulkButton();
+            });
+        }
+
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', updateBulkButton);
+        });
+
+        function closeModal(overlayId, boxId) {
+            const overlay = document.getElementById(overlayId);
+            const box = document.getElementById(boxId);
+            overlay.classList.add('opacity-0');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+
+        function openModal(overlayId, boxId) {
+            const overlay = document.getElementById(overlayId);
+            const box = document.getElementById(boxId);
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+            lucide.createIcons();
+        }
+
+        function openSingleDeleteModal(id) {
+            document.getElementById('single_delete_id').value = id;
+            openModal('singleDeleteModalOverlay', 'singleDeleteModalBox');
+        }
+
+        function openBulkDeleteModal() {
+            openModal('bulkDeleteModalOverlay', 'bulkDeleteModalBox');
+        }
+
+        // --- Fix a Bulk Entry Mistake: live preview + confirm-before-move ---
+        let lastPreview = { count: 0, total: 0 };
+        const moveOldDateInput = document.getElementById('moveOldDate');
+        const moveNewDateInput = document.getElementById('moveNewDate');
+        const moveDateBtn = document.getElementById('moveDateBtn');
+        const moveOldDatePreview = document.getElementById('moveOldDatePreview');
+
+        function refreshMoveButtonState() {
+            const ready = moveOldDateInput.value && moveNewDateInput.value && lastPreview.count > 0;
+            moveDateBtn.disabled = !ready;
+        }
+
+        if (moveOldDateInput) {
+            moveOldDateInput.addEventListener('change', async function() {
+                const date = this.value;
+                if (!date) { moveOldDatePreview.innerText = ""; lastPreview = { count: 0, total: 0 }; refreshMoveButtonState(); return; }
+                moveOldDatePreview.innerText = "Checking...";
+                try {
+                    const res = await fetch(`/api/logs-on-date/${date}`);
+                    const data = await res.json();
+                    lastPreview = data;
+                    if (data.count > 0) {
+                        moveOldDatePreview.innerHTML = `<span class="text-amber-600 font-medium">${data.count} entries found (₹${data.total.toFixed(2)})</span>`;
+                    } else {
+                        moveOldDatePreview.innerHTML = `<span class="text-slate-400">No entries logged on this date</span>`;
+                    }
+                } catch (e) {
+                    moveOldDatePreview.innerText = "Couldn't check this date";
+                    lastPreview = { count: 0, total: 0 };
+                }
+                refreshMoveButtonState();
+            });
+        }
+        if (moveNewDateInput) {
+            moveNewDateInput.addEventListener('change', refreshMoveButtonState);
+        }
+
+        function openMoveDateModal() {
+            if (!moveOldDateInput.value || !moveNewDateInput.value || lastPreview.count <= 0) return;
+            document.getElementById('move_old_date_input').value = moveOldDateInput.value;
+            document.getElementById('move_new_date_input').value = moveNewDateInput.value;
+            document.getElementById('moveModalCount').innerText = lastPreview.count;
+            document.getElementById('moveModalCount2').innerText = lastPreview.count;
+            document.getElementById('moveModalTotal').innerText = lastPreview.total.toFixed(2);
+            document.getElementById('moveModalOldDate').innerText = moveOldDateInput.value;
+            document.getElementById('moveModalNewDate').innerText = moveNewDateInput.value;
+            openModal('moveDateModalOverlay', 'moveDateModalBox');
+        }
+        function openEditLogModal(id, date, qty, staff, item) {
+            document.getElementById('edit_log_id').value = id;
+            document.getElementById('edit_log_date').value = date;
+            document.getElementById('edit_log_qty').value = qty;
+            document.getElementById('edit_log_staff').innerText = staff;
+            document.getElementById('edit_log_item').innerText = item;
+            openModal('editLogModalOverlay', 'editLogModalBox');
+        }
+        // NEW: Select-by-date -- picking a date in the "Select date" box
+        // checks every checkbox for a row logged on that exact date, so
+        // the whole day's entries can be bulk-deleted in one action.
+        function selectRowsByDate() {
+            const picked = document.getElementById('selectByDate').value;
+            if (!picked) return;
+            let matched = 0;
+            document.querySelectorAll('.ledger-row').forEach(row => {
+                const cb = row.querySelector('.log-checkbox');
+                if (!cb) return;
+                if (row.dataset.rawDate === picked) {
+                    cb.checked = true;
+                    matched++;
+                }
+            });
+            updateBulkButton();
+            if (selectAllCheckbox) {
+                const totalCount = document.querySelectorAll('.log-checkbox').length;
+                const checkedCount = document.querySelectorAll('.log-checkbox:checked').length;
+                selectAllCheckbox.checked = totalCount > 0 && checkedCount === totalCount;
+            }
+        }
+
+        // Unchecks everything and resets the date picker -- a clean slate
+        // before selecting a different date.
+        function clearDateSelection() {
+            document.getElementById('selectByDate').value = '';
+            document.querySelectorAll('.log-checkbox').forEach(cb => cb.checked = false);
+            if (selectAllCheckbox) selectAllCheckbox.checked = false;
+            updateBulkButton();
+        }
+
+        // Instant Ledger Search Function
+        function filterLedger() {
+            const input = document.getElementById('ledgerSearch');
+            const filter = input.value.toLowerCase();
+            const rows = document.querySelectorAll('.ledger-row');
+            
+            rows.forEach(row => {
+                const nameCell = row.querySelector('.ledger-staff-name');
+                if (nameCell) {
+                    const name = nameCell.innerText.toLowerCase();
+                    if (name.includes(filter)) {
+                        row.style.display = "";
+                    } else {
+                        row.style.display = "none";
+                    }
+                }
+            });
+        }
+    </script>
+{% include 'features/command.html' %}<script src="/static/features.js" defer></script></body>
+</html>

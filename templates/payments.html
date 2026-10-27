@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="/static/preferences.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payments Ledger</title>
+    <script src="/static/vendor/tailwind-3.4.17.js"></script>
+    <script src="/static/vendor/lucide-0.468.0.js"></script>
+    <style>body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+<meta name="csrf-token" content="{{ csrf_token }}"><meta name="submission-token" content="{{ submission_token() }}"><script src="{{ url_for('static', filename='app.js') }}"></script><link rel="stylesheet" href="/static/features.css"></head>
+<body class="flex h-screen text-slate-800">
+
+    {% include 'sidebar.html' %}
+
+    <main class="flex-1 flex flex-col overflow-y-auto">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+            <h1 class="text-xl font-semibold">Inflow & Collections</h1>
+            <div class="flex items-center space-x-3">
+                <div class="relative">
+                    <button type="button" onclick="toggleExportMenu()" class="inline-flex items-center px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm text-sm">
+                        <i data-lucide="download" class="w-4 h-4 mr-2"></i> Export Excel
+                    </button>
+                    <div id="exportMenu" class="hidden absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-2">
+                        <a href="/export-payments" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">All-Time Ledger</a>
+                        <hr class="my-1 border-slate-100">
+                        {% for m in available_payment_months %}
+                        <a href="/export-payments?month={{ m }}" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">{{ m }}</a>
+                        {% endfor %}
+                    </div>
+                </div>
+                <button type="button" onclick="openBulkPaymentModal()" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm text-sm">
+                    <i data-lucide="layers" class="w-4 h-4 mr-2"></i> Bulk Entry
+                </button>
+            </div>
+        </header>
+
+        <div class="p-8 max-w-[100rem] w-full mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <div class="lg:col-span-1 space-y-6">
+                {% if success %}
+                <div class="bg-green-50 text-green-700 p-4 rounded-lg flex items-center border border-green-200 shadow-sm">
+                    <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i> Payment logged!
+                </div>
+                {% endif %}
+                {% if bulk_success %}
+                <div class="bg-green-50 text-green-700 p-4 rounded-lg flex items-center border border-green-200 shadow-sm">
+                    <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i> Bulk payments saved!
+                </div>
+                {% endif %}
+
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                    <h2 class="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+                        <i data-lucide="user-check" class="w-5 h-5 mr-2 text-indigo-600"></i> Staff Bill Payment
+                    </h2>
+                    <form action="/payments" method="POST" class="space-y-4"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Date</label>
+                            <input type="date" name="payment_date" id="datePicker" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Staff Member</label>
+                            <select name="employee_id" id="staffSelect" onchange="showPending()" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option value="">-- Select --</option>
+                                {% for emp in employees %}
+                                <option value="{{ emp[0] }}">{{ emp[1] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Amount Paid (₹)</label>
+                            <input type="number" name="amount" step="1" required placeholder="e.g. 500" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <button type="submit" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm">
+                            Save Payment
+                        </button>
+
+                        <!-- Info only: appears once a staff member is selected -->
+                        <div id="pendingInfo" class="hidden rounded-lg border px-4 py-3">
+                            <div class="flex items-center justify-between gap-3">
+                                <span id="pendingLabel" class="text-sm font-medium"></span>
+                                <span id="pendingAmount" class="text-lg font-bold whitespace-nowrap"></span>
+                            </div>
+                            <p class="text-[11px] mt-1 opacity-70">For information only: opening balance + all bills − all payments to date.</p>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 border-l-4 border-l-emerald-500">
+                    <h2 class="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+                        <i data-lucide="coins" class="w-5 h-5 mr-2 text-emerald-600"></i> Misc. Income
+                    </h2>
+                    <p class="text-xs text-slate-500 mb-4">Log cash from scrap sales, subsidies, or guests.</p>
+                    <form action="/add-misc-income" method="POST" class="space-y-4"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                        <input type="date" name="income_date" id="datePickerMisc" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <input type="text" name="source" required placeholder="Income Source (e.g. Office Subsidy)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <input type="number" name="amount" step="1" required placeholder="Amount (₹)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <button type="submit" class="w-full bg-slate-800 text-white px-4 py-2 rounded-lg font-medium hover:bg-slate-900 transition-colors shadow-sm">
+                            Add to Master Balance
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 space-y-6">
+                
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col max-h-[70vh]">
+                    <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 shrink-0 flex items-center justify-between gap-4 flex-wrap">
+                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wider">Staff Payments</h2>
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <div class="relative">
+                                <i data-lucide="calendar-days" class="w-4 h-4 text-indigo-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                <select onchange="window.location.href='/payments?filter_month='+this.value" class="appearance-none pl-9 pr-8 py-1.5 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+                                    {% for m in available_payment_months_display %}
+                                    <option value="{{ m.value }}" {% if m.value == filter_month %}selected{% endif %}>{{ m.label }}</option>
+                                    {% endfor %}
+                                </select>
+                                <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                            </div>
+                            <input type="text" id="paymentsSearch" onkeyup="filterTable('paymentsSearch', 'payment-row', 'payment-name')" placeholder="Search staff name..." class="w-48 border border-slate-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm">
+                        </div>
+                    </div>
+                    <div class="overflow-y-auto flex-1">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="sticky top-0 bg-white shadow-sm z-10 border-b border-slate-200">
+                                <tr class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                    <th class="px-6 py-3">Date</th>
+                                    <th class="px-6 py-3">Staff Member</th>
+                                    <th class="px-6 py-3 text-right">Amount Credited</th>
+                                    <th class="px-4 py-3"></th> 
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-sm">
+                                {% for pay in recent_payments %}
+                                <tr class="hover:bg-slate-50 transition-colors group payment-row">
+                                    <td class="px-6 py-4 text-slate-600">{{ pay[1] }}</td>
+                                    <td class="px-6 py-4 font-medium text-slate-900 payment-name">{{ pay[2] }}</td>
+                                    <td class="px-6 py-4 text-right font-semibold text-indigo-600">+₹{{ "%.2f"|format(pay[3]) }}</td>
+                                    <td class="px-4 py-4 text-right opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                        <button onclick="editPayment('{{ pay[0] }}', '{{ pay[3] }}')" class="text-slate-400 hover:text-blue-600 p-1 transition-colors mr-2">
+                                            <i data-lucide="edit-2" class="w-4 h-4"></i>
+                                        </button>
+                                        <button type="button" onclick="openDeleteModal('{{ pay[0] }}')" class="text-slate-400 hover:text-rose-600 p-1 transition-colors" title="Delete Payment">
+                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="px-6 py-8 text-center text-slate-500 italic">No payments recorded yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col max-h-[300px]">
+                    <div class="px-6 py-4 border-b border-slate-200 bg-emerald-50/50 shrink-0 flex items-center justify-between gap-4">
+                        <h2 class="text-sm font-semibold text-emerald-800 uppercase tracking-wider">Other Income History <span class="normal-case font-normal text-emerald-700/70 tracking-normal">— {{ filter_month_display }}</span></h2>
+                        <input type="text" id="miscSearch" onkeyup="filterTable('miscSearch', 'misc-row', 'misc-source')" placeholder="Search source..." class="w-48 border border-slate-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm">
+                    </div>
+                    <div class="overflow-y-auto flex-1">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="sticky top-0 bg-white shadow-sm z-10 border-b border-slate-200">
+                                <tr class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                    <th class="px-6 py-3">Date</th>
+                                    <th class="px-6 py-3">Income Source</th>
+                                    <th class="px-6 py-3 text-right">Amount</th>
+                                    <th class="px-4 py-3"></th> 
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-sm">
+                                {% for inc in recent_misc %}
+                                <tr class="hover:bg-slate-50 transition-colors group misc-row">
+                                    <td class="px-6 py-4 text-slate-600">{{ inc[3] }}</td>
+                                    <td class="px-6 py-4 font-medium text-slate-900 misc-source">{{ inc[1] }}</td>
+                                    <td class="px-6 py-4 text-right font-semibold text-emerald-600">+₹{{ "%.2f"|format(inc[2]) }}</td>
+                                    <td class="px-4 py-4 text-right opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                        <button type="button" onclick="openDeleteMiscModal('{{ inc[0] }}')" class="text-slate-400 hover:text-rose-600 p-1 transition-colors" title="Delete Income">
+                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="px-6 py-8 text-center text-slate-500 italic">No miscellaneous income recorded for {{ filter_month_display }}.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- NEW: Monthly Reports -- Who Paid / Who's Pending -->
+        <div class="max-w-[100rem] w-full mx-auto px-8 pb-8">
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                <div class="flex items-center justify-between flex-wrap gap-4 mb-4">
+                    <h2 class="text-lg font-semibold text-slate-900 flex items-center">
+                        <i data-lucide="bar-chart-3" class="w-5 h-5 mr-2 text-indigo-600"></i> Monthly Reports
+                    </h2>
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <div class="relative">
+                            <i data-lucide="calendar-days" class="w-4 h-4 text-indigo-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                            <select id="reportMonthSelect" class="appearance-none pl-9 pr-8 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 bg-white shadow-sm hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+                                {% for m in available_payment_months_display %}
+                                <option value="{{ m.value }}" {% if m.value == report_month %}selected{% endif %}>{{ m.label }}</option>
+                                {% endfor %}
+                            </select>
+                            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                        </div>
+                        <button type="button" onclick="goToPaymentsReport('paid')" class="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors shadow-sm text-sm">
+                            <i data-lucide="check-circle" class="w-4 h-4 mr-2"></i> Who Paid
+                        </button>
+                        <button type="button" onclick="goToPaymentsReport('pending')" class="inline-flex items-center px-4 py-2 bg-rose-600 text-white rounded-lg font-medium hover:bg-rose-700 transition-colors shadow-sm text-sm">
+                            <i data-lucide="alert-circle" class="w-4 h-4 mr-2"></i> Who's Pending
+                        </button>
+                    </div>
+                </div>
+
+                {% if report_type %}
+                <div class="border-t border-slate-100 pt-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-semibold text-slate-700">
+                            {% if report_type == 'paid' %}
+                            Staff Who Paid — {{ report_month_display }}
+                            {% else %}
+                            Outstanding as of End of {{ prev_report_month_display }} <span class="font-normal text-slate-400">(viewed during {{ report_month_display }})</span>
+                            {% endif %}
+                        </h3>
+                        <a href="/download-payments-report-pdf?report={{ report_type }}&report_month={{ report_month }}" class="inline-flex items-center px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm text-xs">
+                            <i data-lucide="file-down" class="w-3.5 h-3.5 mr-1.5"></i> Download PDF
+                        </a>
+                    </div>
+
+                    {% if report_rows %}
+                    <div class="border border-slate-200 rounded-lg overflow-hidden">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-slate-50 border-b border-slate-200">
+                                <tr class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                    <th class="px-5 py-3">Staff Member</th>
+                                    <th class="px-5 py-3">Department</th>
+                                    <th class="px-5 py-3 text-right">{{ "Amount Paid" if report_type == 'paid' else "Amount Pending" }}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-sm max-h-80">
+                                {% for row in report_rows %}
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-5 py-2.5 font-medium text-slate-800">{{ row[0] }}</td>
+                                    <td class="px-5 py-2.5 text-slate-500">{{ row[1] or "—" }}</td>
+                                    <td class="px-5 py-2.5 text-right font-semibold {% if report_type == 'paid' %}text-emerald-600{% else %}text-rose-600{% endif %}">₹{{ "%.2f"|format(row[2]) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="bg-slate-50 border-t-2 border-slate-200">
+                                    <td class="px-5 py-3 font-bold text-slate-900" colspan="2">Total ({{ report_rows|length }} staff)</td>
+                                    <td class="px-5 py-3 text-right font-bold text-lg {% if report_type == 'paid' %}text-emerald-600{% else %}text-rose-600{% endif %}">₹{{ "%.2f"|format(report_total) }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-8 text-slate-400 italic border border-slate-200 rounded-lg">
+                        {% if report_type == 'paid' %}
+                        No payments recorded for {{ report_month_display }}.
+                        {% else %}
+                        Nobody has any pending balance as of the end of {{ report_month_display }}. 🎉
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Hidden form for editing payments -->
+    <div id="editModalOverlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="editModalBox">
+            
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                <h3 class="font-semibold text-slate-800 flex items-center">
+                    <i data-lucide="edit" class="w-4 h-4 mr-2 text-indigo-600"></i> Edit Payment
+                </h3>
+                <button type="button" onclick="closeEditModal()" class="text-slate-400 hover:text-rose-500 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div class="p-6">
+                <form action="/edit-payment" method="POST" class="space-y-5"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                    <input type="hidden" name="payment_id" id="modal_pay_id">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Amount Paid (₹)</label>
+                        <input type="number" name="new_amount" id="modal_pay_amount" step="1" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-shadow">
+                    </div>
+                    
+                    <div class="pt-2 flex space-x-3">
+                        <button type="button" onclick="closeEditModal()" class="flex-1 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">
+                            Cancel
+                        </button>
+                        <button type="submit" class="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm">
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    <div id="deleteModalOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="deleteModalBox">
+            
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+                </div>
+                
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Delete Payment?</h3>
+                <p class="text-sm text-slate-500 mb-6">Are you sure you want to delete this payment record? This will automatically reverse the deduction on the employee's bill.</p>
+                
+                <form action="/delete-payment" method="POST" class="flex space-x-3"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                    <input type="hidden" name="payment_id" id="delete_modal_id">
+                    
+                    <button type="button" onclick="closeDeleteModal()" class="flex-1 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">
+                        Cancel
+                    </button>
+                    <button type="submit" class="flex-1 bg-rose-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-rose-700 transition-colors shadow-sm">
+                        Yes, Delete
+                    </button>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+    <!-- Modern Tailwind Delete Misc Income Modal -->
+    <div id="deleteMiscModalOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="deleteMiscModalBox">
+            
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+                </div>
+                
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Delete Income Record?</h3>
+                <p class="text-sm text-slate-500 mb-6">Are you sure you want to delete this miscellaneous income? The amount will automatically be deducted from your Master Balance.</p>
+                
+                <form action="/delete-misc-income" method="POST" class="flex space-x-3"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                    <input type="hidden" name="income_id" id="delete_misc_id">
+                    
+                    <button type="button" onclick="closeDeleteMiscModal()" class="flex-1 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">
+                        Cancel
+                    </button>
+                    <button type="submit" class="flex-1 bg-rose-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-rose-700 transition-colors shadow-sm">
+                        Yes, Delete
+                    </button>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Bulk Payment Entry Modal -->
+    <div id="bulkPaymentModalOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300 p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[85vh]" id="bulkPaymentModalBox">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center shrink-0">
+                <h3 class="font-semibold text-slate-800 flex items-center">
+                    <i data-lucide="layers" class="w-4 h-4 mr-2 text-indigo-600"></i> Bulk Payment Entry
+                </h3>
+                <button type="button" onclick="closeBulkPaymentModal()" class="text-slate-400 hover:text-rose-500 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form action="/bulk-payments" method="POST" class="flex flex-col flex-1 overflow-hidden"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                <div class="px-6 py-4 border-b border-slate-100 shrink-0">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Date (applied to every entry below)</label>
+                    <input type="date" name="payment_date" id="bulkPaymentDate" required class="w-64 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <p class="text-xs text-slate-400 mt-2">Fill in an amount only for the staff who paid today — leave the rest blank.</p>
+                </div>
+
+                <div class="overflow-y-auto flex-1 px-6 py-4">
+                    <input type="text" id="bulkPaymentSearch" onkeyup="filterTable('bulkPaymentSearch', 'bulk-pay-row', 'bulk-pay-name')" placeholder="Search staff name..." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm mb-3">
+                    <div class="divide-y divide-slate-100 border border-slate-200 rounded-lg">
+                        {% for emp in employees %}
+                        <div class="flex items-center justify-between px-4 py-2.5 bulk-pay-row">
+                            <span class="text-sm font-medium text-slate-800 bulk-pay-name">{{ emp[1] }}</span>
+                            <div class="relative w-36">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+                                <input type="number" name="amt_{{ emp[0] }}" min="0" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg pl-7 pr-3 py-1.5 text-sm text-right focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end space-x-3 shrink-0">
+                    <button type="button" onclick="closeBulkPaymentModal()" class="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm">
+                        Save All Payments
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        document.getElementById('datePicker').value = localISODate();
+
+        // --- Pending amount for the selected staff member (info only) ---
+        // Positive = still owes, 0 = settled, negative = paid in advance.
+        const pendingByEmp = {{ pending_by_emp | tojson }};
+
+        function describePending(amount) {
+            const fmt = (n) => '₹' + Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (amount > 0.005) {
+                return { label: 'Pending amount', text: fmt(amount),
+                         box: 'rounded-lg border px-4 py-3 bg-rose-50 border-rose-200 text-rose-700' };
+            }
+            if (amount < -0.005) {
+                return { label: 'Paid in advance (credit)', text: fmt(amount),
+                         box: 'rounded-lg border px-4 py-3 bg-emerald-50 border-emerald-200 text-emerald-700' };
+            }
+            return { label: 'Pending amount', text: '₹0.00 · all settled',
+                     box: 'rounded-lg border px-4 py-3 bg-emerald-50 border-emerald-200 text-emerald-700' };
+        }
+
+        function showPending() {
+            const select = document.getElementById('staffSelect');
+            const panel = document.getElementById('pendingInfo');
+            if (!select || !panel) return;
+            const amount = pendingByEmp[select.value];
+            if (!select.value || amount === undefined) {
+                panel.classList.add('hidden');
+                return;
+            }
+            const info = describePending(amount);
+            panel.className = info.box;
+            document.getElementById('pendingLabel').textContent = info.label;
+            document.getElementById('pendingAmount').textContent = info.text;
+        }
+        showPending(); // also covers the browser restoring a previously chosen staff member
+
+        // Monthly Reports: plain navigation, deliberately NOT a form submit --
+        // this avoids any ambiguity around which of two buttons in one form
+        // was actually clicked.
+        function goToPaymentsReport(type) {
+            const monthSelect = document.getElementById('reportMonthSelect');
+            const month = monthSelect ? monthSelect.value : '';
+            window.location.href = `/payments?report=${type}&report_month=${month}`;
+        }
+
+        // Export month dropdown
+        function toggleExportMenu() {
+            document.getElementById('exportMenu').classList.toggle('hidden');
+        }
+        document.addEventListener('click', function(e) {
+            const menu = document.getElementById('exportMenu');
+            const btn = e.target.closest('button');
+            if (menu && !menu.contains(e.target) && !(btn && btn.onclick && btn.onclick.toString().includes('toggleExportMenu'))) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        // Bulk Payment Modal
+        function openBulkPaymentModal() {
+            document.getElementById('bulkPaymentDate').value = localISODate();
+            const overlay = document.getElementById('bulkPaymentModalOverlay');
+            const box = document.getElementById('bulkPaymentModalBox');
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+            lucide.createIcons();
+        }
+        function closeBulkPaymentModal() {
+            const overlay = document.getElementById('bulkPaymentModalOverlay');
+            const box = document.getElementById('bulkPaymentModalBox');
+            overlay.classList.add('opacity-0');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+
+        // Search Filter Logic
+        function filterTable(inputId, rowClass, targetClass) {
+            const filter = document.getElementById(inputId).value.toLowerCase();
+            const rows = document.querySelectorAll('.' + rowClass);
+            rows.forEach(row => {
+                const targetCell = row.querySelector('.' + targetClass);
+                if (targetCell) {
+                    const text = targetCell.innerText.toLowerCase();
+                    row.style.display = text.includes(filter) ? "" : "none";
+                }
+            });
+        }
+        // JavaScript to handle the Edit popup
+        // 1. Edit Modal Logic
+        function editPayment(id, currentAmount) {
+            document.getElementById('modal_pay_id').value = id;
+            document.getElementById('modal_pay_amount').value = currentAmount;
+            
+            const overlay = document.getElementById('editModalOverlay');
+            const box = document.getElementById('editModalBox');
+            
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+            
+            lucide.createIcons();
+        }
+
+        function closeEditModal() {
+            const overlay = document.getElementById('editModalOverlay');
+            const box = document.getElementById('editModalBox');
+            
+            overlay.classList.add('opacity-0');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+
+        // 2. Delete Modal Logic
+        function openDeleteModal(id) {
+            document.getElementById('delete_modal_id').value = id;
+            
+            const overlay = document.getElementById('deleteModalOverlay');
+            const box = document.getElementById('deleteModalBox');
+            
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeDeleteModal() {
+            const overlay = document.getElementById('deleteModalOverlay');
+            const box = document.getElementById('deleteModalBox');
+            
+            overlay.classList.add('opacity-0');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+        // 3. Delete Misc Income Modal Logic
+        function openDeleteMiscModal(id) {
+            document.getElementById('delete_misc_id').value = id;
+            
+            const overlay = document.getElementById('deleteMiscModalOverlay');
+            const box = document.getElementById('deleteMiscModalBox');
+            
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeDeleteMiscModal() {
+            const overlay = document.getElementById('deleteMiscModalOverlay');
+            const box = document.getElementById('deleteMiscModalBox');
+            
+            overlay.classList.add('opacity-0');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+        // Universal Prevent Double Submit Logic
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            // Use the button that was ACTUALLY clicked (e.submitter), not just
+            // "the first submit button in the form" -- a form can have more
+            // than one submit button (e.g. "Who Paid" / "Who's Pending"),
+            // and querySelector() always picks the first one regardless of
+            // which was really pressed.
+            const submitBtn = e.submitter || form.querySelector('button[type="submit"]');
+            
+            if (submitBtn) {
+                // If the button is already disabled, stop the form from submitting again
+                if (submitBtn.disabled) {
+                    e.preventDefault();
+                    return;
+                }
+                
+                // Disable the button and change the text
+                submitBtn.disabled = true;
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 mr-2 animate-spin inline"></i> Processing...';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+                
+                // Safety fallback: Re-enable the button after 4 seconds just in case the server hangs
+                setTimeout(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }, 4000);
+            }
+        });
+    </script>
+{% include 'features/command.html' %}<script src="/static/features.js" defer></script></body>
+</html>

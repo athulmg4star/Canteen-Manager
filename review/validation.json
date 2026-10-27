@@ -1,0 +1,21 @@
+{
+  "regression_tests_passed": 40,
+  "original_database_matches_review_snapshot": true,
+  "browser_viewports": [
+    {
+      "width": 1400,
+      "height": 900
+    },
+    {
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "historical_grid_date": "2026-10-15",
+  "historical_grid_saved_entries": 120,
+  "historical_grid_displayed_total": 2446,
+  "windows_executable_tested": false,
+  "preview_url": "http://127.0.0.1:5003",
+  "original_app_sha256": "fac2b05a0027d09a7b8023edde53bfbdec6a25bac6d129a9dfd0734788f2edb8",
+  "original_database_sha256": "8896ee1bc62d4b0fd447bf5a57b355d4893bcf5c80c2780ad209475f28b253a0"
+}

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="/static/preferences.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manager's Fund Ledger</title>
+    <script src="/static/vendor/tailwind-3.4.17.js"></script>
+    <script src="/static/vendor/lucide-0.468.0.js"></script>
+    <style>body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+<meta name="csrf-token" content="{{ csrf_token }}"><meta name="submission-token" content="{{ submission_token() }}"><script src="{{ url_for('static', filename='app.js') }}"></script><link rel="stylesheet" href="/static/features.css"></head>
+<body class="flex h-screen text-slate-800">
+
+    {% include 'sidebar.html' %}
+
+    <main class="flex-1 flex flex-col overflow-y-auto">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+            <div>
+                <h1 class="text-xl font-semibold">Manager's Fund Ledger</h1>
+                <p class="text-[11px] text-slate-400">Personal record only — never included in canteen accounts</p>
+            </div>
+            <div class="relative">
+                <i data-lucide="calendar-days" class="w-4 h-4 text-indigo-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                <select onchange="window.location.href='/manager-fund?month='+this.value" class="appearance-none pl-9 pr-8 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 bg-white shadow-sm hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+                    {% for m in available_months_display %}
+                    <option value="{{ m.value }}" {% if m.value == target_month %}selected{% endif %}>{{ m.label }}</option>
+                    {% endfor %}
+                </select>
+                <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+            </div>
+        </header>
+
+        <div class="p-8 max-w-6xl w-full mx-auto">
+
+            {% if success %}
+            <div class="mb-6 bg-green-50 text-green-700 p-4 rounded-lg flex items-center border border-green-200">
+                <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i> Entry saved successfully!
+            </div>
+            {% endif %}
+
+            <!-- Outstanding balance banner (all-time truth, regardless of month being viewed) -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-6 flex items-center justify-between flex-wrap gap-4 {% if current_balance < -0.005 %}border-l-4 border-l-rose-500{% elif current_balance > 0.005 %}border-l-4 border-l-emerald-500{% endif %}">
+                <div>
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Current Outstanding (All-Time)</p>
+                    <p class="text-3xl font-bold {% if current_balance < -0.005 %}text-rose-600{% elif current_balance > 0.005 %}text-emerald-600{% else %}text-slate-700{% endif %}">
+                        ₹{{ "%.2f"|format(current_balance|abs) }}
+                    </p>
+                    <p class="text-sm font-medium mt-1 {% if current_balance < -0.005 %}text-rose-500{% elif current_balance > 0.005 %}text-emerald-500{% else %}text-slate-400{% endif %}">
+                        {% if current_balance < -0.005 %}
+                        Canteen owes {{ manager_name }}
+                        {% elif current_balance > 0.005 %}
+                        {{ manager_name }} owes canteen (surplus held)
+                        {% else %}
+                        Settled — no outstanding balance
+                        {% endif %}
+                    </p>
+                </div>
+                <a href="/download-manager-fund-pdf?month={{ target_month }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm text-sm">
+                    <i data-lucide="file-down" class="w-4 h-4 mr-2"></i> Download {{ display_month_name }} PDF
+                </a>
+            </div>
+
+            <!-- This month's carried-forward opening / closing -->
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">{{ display_month_name }} — Opening (Carried Forward)</p>
+                    <p class="text-xl font-bold {% if month_opening_balance < -0.005 %}text-rose-600{% elif month_opening_balance > 0.005 %}text-emerald-600{% else %}text-slate-700{% endif %}">₹{{ "%.2f"|format(month_opening_balance) }}</p>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">{{ display_month_name }} — Closing</p>
+                    <p class="text-xl font-bold {% if month_closing_balance < -0.005 %}text-rose-600{% elif month_closing_balance > 0.005 %}text-emerald-600{% else %}text-slate-700{% endif %}">₹{{ "%.2f"|format(month_closing_balance) }}</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Carries forward automatically as next month's opening</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+                <div class="lg:col-span-1 space-y-6">
+                    <!-- True starting balance (before the very first entry) -->
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-1">True Starting Balance</h2>
+                        <p class="text-[11px] text-slate-400 mb-3">Set this once. Every month after automatically carries forward from the previous month's closing — you shouldn't need to touch this again.</p>
+                        <form action="/set-manager-fund-opening" method="POST" class="space-y-3"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                            <input type="hidden" name="redirect_month" value="{{ target_month }}">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 mb-1">Amount (₹) — negative if canteen already owed you</label>
+                                <input type="number" name="opening_balance" step="0.01" value="{{ true_opening_balance }}" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 mb-1">As of Date</label>
+                                <input type="date" name="opening_date" value="{{ true_opening_date }}" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+                            <button type="submit" class="w-full bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm text-sm">
+                                Save Starting Balance
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Add entry -->
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                        <h2 class="text-lg font-semibold text-slate-900 mb-4">Add Entry</h2>
+                        <form action="/manager-fund" method="POST" class="space-y-4"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Date</label>
+                                <input type="date" name="entry_date" id="datePicker" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Amount (₹)</label>
+                                <input type="number" name="amount" step="0.01" required placeholder="Negative if paid out, positive if received" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <p class="text-[11px] text-slate-400 mt-1">e.g. <span class="text-rose-500 font-medium">-1450</span> if you paid from your own pocket, <span class="text-emerald-500 font-medium">+5011</span> if canteen cash came back to you.</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Remarks</label>
+                                <input type="text" name="remarks" placeholder="e.g. Zepto - Oil & Tea" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+                            <button type="submit" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm">
+                                Save Entry
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[75vh]">
+                        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 shrink-0">
+                            <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wider">{{ display_month_name }} Transactions</h2>
+                        </div>
+                        <div class="overflow-y-auto flex-1">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="sticky top-0 bg-white shadow-sm z-10 border-b border-slate-200">
+                                    <tr class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                        <th class="px-6 py-3">Date</th>
+                                        <th class="px-6 py-3 text-right">Amount</th>
+                                        <th class="px-6 py-3 text-right">Balance</th>
+                                        <th class="px-6 py-3">Remarks</th>
+                                        <th class="px-4 py-3"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 text-sm">
+                                    <tr class="bg-indigo-50/40">
+                                        <td class="px-6 py-3 font-semibold text-slate-500" colspan="2">Opening (Carried Forward)</td>
+                                        <td class="px-6 py-3 text-right font-bold {% if month_opening_balance < -0.005 %}text-rose-600{% elif month_opening_balance > 0.005 %}text-emerald-600{% else %}text-slate-500{% endif %}">₹{{ "%.2f"|format(month_opening_balance) }}</td>
+                                        <td colspan="2"></td>
+                                    </tr>
+                                    {% for e in entries %}
+                                    <tr class="hover:bg-slate-50 transition-colors group">
+                                        <td class="px-6 py-3 text-slate-600 whitespace-nowrap">{{ e.date }}</td>
+                                        <td class="px-6 py-3 text-right font-medium {% if e.amount < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">
+                                            {% if e.amount > 0 %}+{% endif %}₹{{ "%.2f"|format(e.amount) }}
+                                        </td>
+                                        <td class="px-6 py-3 text-right font-semibold {% if e.balance < -0.005 %}text-rose-600{% elif e.balance > 0.005 %}text-emerald-600{% else %}text-slate-500{% endif %}">
+                                            ₹{{ "%.2f"|format(e.balance) }}
+                                        </td>
+                                        <td class="px-6 py-3 text-slate-500">{{ e.remarks or "—" }}</td>
+                                        <td class="px-4 py-3 text-right whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button type="button" onclick="openEditModal('{{ e.id }}', '{{ e.date }}', '{{ e.amount }}', '{{ e.remarks|replace("'", "") }}')" class="text-slate-400 hover:text-indigo-600 p-1 transition-colors">
+                                                <i data-lucide="edit-2" class="w-4 h-4"></i>
+                                            </button>
+                                            <form action="/delete-manager-fund-entry" method="POST" class="inline" onsubmit="return confirm('Delete this entry?');"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                                                <input type="hidden" name="entry_id" value="{{ e.id }}">
+                                                <input type="hidden" name="redirect_month" value="{{ target_month }}">
+                                                <button type="submit" class="text-slate-400 hover:text-rose-600 p-1 transition-colors">
+                                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="5" class="px-6 py-12 text-center text-slate-400 italic">No transactions logged yet.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Edit Entry Modal -->
+    <div id="editModalOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300 p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="editModalBox">
+            <div class="p-6">
+                <h3 class="text-lg font-bold text-slate-900 mb-4">Edit Entry</h3>
+                <form action="/edit-manager-fund-entry" method="POST" class="space-y-4"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                    <input type="hidden" name="entry_id" id="edit_entry_id">
+                    <input type="hidden" name="redirect_month" value="{{ target_month }}">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Date</label>
+                        <input type="date" name="entry_date" id="edit_entry_date" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Amount (₹)</label>
+                        <input type="number" name="amount" id="edit_amount" step="0.01" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Remarks</label>
+                        <input type="text" name="remarks" id="edit_remarks" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div class="flex space-x-3">
+                        <button type="button" onclick="closeEditModal()" class="flex-1 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+                        <button type="submit" class="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        document.getElementById('datePicker').value = localISODate();
+
+        function openEditModal(id, date, amount, remarks) {
+            document.getElementById('edit_entry_id').value = id;
+            document.getElementById('edit_entry_date').value = date;
+            document.getElementById('edit_amount').value = amount;
+            document.getElementById('edit_remarks').value = remarks;
+            const overlay = document.getElementById('editModalOverlay');
+            const box = document.getElementById('editModalBox');
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+        }
+        function closeEditModal() {
+            const overlay = document.getElementById('editModalOverlay');
+            const box = document.getElementById('editModalBox');
+            overlay.classList.add('opacity-0');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+
+        // Universal Prevent Double Submit Logic
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            // Use the button that was ACTUALLY clicked (e.submitter), not just
+            // "the first submit button in the form" -- some pages have more
+            // than one submit button in the same form.
+            const submitBtn = e.submitter || form.querySelector('button[type="submit"]');
+            if (submitBtn && !form.hasAttribute('onsubmit')) {
+                if (submitBtn.disabled) { e.preventDefault(); return; }
+                submitBtn.disabled = true;
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 mr-2 animate-spin inline"></i> Saving...';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+                setTimeout(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }, 4000);
+            }
+        });
+    </script>
+{% include 'features/command.html' %}<script src="/static/features.js" defer></script></body>
+</html>

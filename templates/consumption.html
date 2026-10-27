@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="/static/preferences.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consumption Tracker</title>
+    <script src="/static/vendor/tailwind-3.4.17.js"></script>
+    <script src="/static/vendor/lucide-0.468.0.js"></script>
+    <script src="/static/vendor/chart-4.4.8.js"></script>
+    <style>body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+<meta name="csrf-token" content="{{ csrf_token }}"><meta name="submission-token" content="{{ submission_token() }}"><script src="{{ url_for('static', filename='app.js') }}"></script><link rel="stylesheet" href="/static/features.css"></head>
+<body class="flex h-screen text-slate-800">
+
+    {% include 'sidebar.html' %}
+
+    <main class="flex-1 flex flex-col overflow-y-auto">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+            <h1 class="text-xl font-semibold">Consumption Tracker</h1>
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <i data-lucide="package" class="w-4 h-4 text-indigo-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                    <select onchange="navigateTo(this.value, '{{ target_month }}')" id="itemSelector" class="appearance-none pl-9 pr-8 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 bg-white shadow-sm hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+                        {% for it in items %}
+                        <option value="{{ it[0] }}" {% if it[0] == selected_item_id %}selected{% endif %}>{{ it[1] }} ({{ it[2] }})</option>
+                        {% endfor %}
+                    </select>
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                </div>
+                <div class="relative">
+                    <i data-lucide="calendar-days" class="w-4 h-4 text-indigo-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                    <select onchange="navigateTo('{{ selected_item_id }}', this.value)" id="monthSelector" class="appearance-none pl-9 pr-8 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 bg-white shadow-sm hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+                        {% for m in available_months_display %}
+                        <option value="{{ m.value }}" {% if m.value == target_month %}selected{% endif %}>{{ m.label }}</option>
+                        {% endfor %}
+                    </select>
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                </div>
+            </div>
+        </header>
+
+        <div class="p-8 max-w-[100rem] w-full mx-auto">
+
+            {% if success %}
+            <div class="mb-6 bg-green-50 text-green-700 p-4 rounded-lg flex items-center border border-green-200">
+                <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i> Entry saved successfully!
+            </div>
+            {% endif %}
+
+            {% if not items %}
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center">
+                <i data-lucide="package-x" class="w-10 h-10 text-slate-300 mx-auto mb-3"></i>
+                <p class="text-slate-500 font-medium">No consumption items set up yet.</p>
+                <button type="button" onclick="openQuickAddItemModal()" class="mt-4 inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm text-sm">
+                    <i data-lucide="plus-circle" class="w-4 h-4 mr-2"></i> Add Your First Item
+                </button>
+            </div>
+            {% else %}
+
+            <!-- Infographic cards for the selected item + month -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Total Consumption</p>
+                    <p class="text-2xl font-bold text-slate-800">{{ "%.1f"|format(insights.total_qty) }}</p>
+                    <p class="text-xs text-slate-400 mt-0.5">{{ selected_item_unit }} in {{ display_month_name }}</p>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Total Amount</p>
+                    <p class="text-2xl font-bold text-slate-800">₹{{ "%.2f"|format(insights.total_amt) }}</p>
+                    <p class="text-xs text-slate-400 mt-0.5">spent in {{ display_month_name }}</p>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Avg Rate (6 Months)</p>
+                    <p class="text-2xl font-bold text-slate-800">₹{{ "%.2f"|format(insights.avg_rate_6mo) }}</p>
+                    <p class="text-xs text-slate-400 mt-0.5">per {{ selected_item_unit }}, blended</p>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 {% if insights.rate_change_pct is not none %}{% if insights.rate_change_pct > 0 %}border-l-4 border-l-rose-500{% elif insights.rate_change_pct < 0 %}border-l-4 border-l-emerald-500{% endif %}{% endif %}">
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">This Month's Rate</p>
+                    <p class="text-2xl font-bold text-slate-800">₹{{ "%.2f"|format(insights.avg_rate_this_month) }}</p>
+                    {% if insights.rate_change_pct is none %}
+                    <p class="text-xs text-slate-400 mt-0.5">No prior month to compare</p>
+                    {% else %}
+                    <p class="text-xs font-semibold mt-0.5 flex items-center {% if insights.rate_change_pct > 0 %}text-rose-600{% elif insights.rate_change_pct < 0 %}text-emerald-600{% else %}text-slate-400{% endif %}">
+                        {% if insights.rate_change_pct > 0 %}<i data-lucide="arrow-up-right" class="w-3.5 h-3.5 mr-1"></i>
+                        {% elif insights.rate_change_pct < 0 %}<i data-lucide="arrow-down-right" class="w-3.5 h-3.5 mr-1"></i>
+                        {% else %}<i data-lucide="minus" class="w-3.5 h-3.5 mr-1"></i>
+                        {% endif %}
+                        {{ "%.1f"|format(insights.rate_change_pct|abs) }}% vs last month
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+                <div class="lg:col-span-1 space-y-6">
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-semibold text-slate-900">Log Purchase</h2>
+                            <button type="button" onclick="openQuickAddItemModal()" class="text-xs font-medium text-indigo-600 hover:text-indigo-800 inline-flex items-center">
+                                <i data-lucide="settings-2" class="w-3.5 h-3.5 mr-1"></i> Manage Items
+                            </button>
+                        </div>
+                        <form action="/consumption" method="POST" class="space-y-4"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Item</label>
+                                <select name="item_id" id="entryItemSelect" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                                    {% for it in items %}
+                                    <option value="{{ it[0] }}" data-unit="{{ it[2] }}" {% if it[0] == selected_item_id %}selected{% endif %}>{{ it[1] }} ({{ it[2] }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Quantity (<span id="unitLabel">{{ selected_item_unit }}</span>)</label>
+                                <input type="number" name="quantity" step="0.01" required placeholder="e.g. 25" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Total Amount (₹)</label>
+                                <input type="number" name="amount" step="0.01" required placeholder="e.g. 1200" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Date</label>
+                                <input type="date" name="purchase_date" id="datePicker" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Notes <span class="text-slate-400 font-normal">(optional)</span></label>
+                                <input type="text" name="notes" placeholder="e.g. vendor name" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+                            <button type="submit" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm">
+                                Save Entry
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-4">Rate Trend (Last 6 Months)</h2>
+                        <div class="relative h-56 w-full">
+                            <canvas id="rateTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[75vh]">
+                        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 shrink-0">
+                            <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wider">{{ selected_item_name }} — {{ display_month_name }}</h2>
+                        </div>
+                        <div class="overflow-y-auto flex-1">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="sticky top-0 bg-white shadow-sm z-10 border-b border-slate-200">
+                                    <tr class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                        <th class="px-6 py-3">Date</th>
+                                        <th class="px-6 py-3 text-right">Quantity</th>
+                                        <th class="px-6 py-3 text-right">Amount</th>
+                                        <th class="px-6 py-3 text-right">Rate</th>
+                                        <th class="px-6 py-3">Notes</th>
+                                        <th class="px-4 py-3"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 text-sm">
+                                    {% for h in history %}
+                                    <tr class="hover:bg-slate-50 transition-colors group">
+                                        <td class="px-6 py-4 text-slate-600 whitespace-nowrap">{{ h[3] }}</td>
+                                        <td class="px-6 py-4 text-right font-medium text-slate-800">{{ "%.2f"|format(h[1]) }} {{ selected_item_unit }}</td>
+                                        <td class="px-6 py-4 text-right font-semibold text-indigo-600">₹{{ "%.2f"|format(h[2]) }}</td>
+                                        <td class="px-6 py-4 text-right text-slate-500">₹{{ "%.2f"|format(h[2] / h[1]) if h[1] else "—" }}</td>
+                                        <td class="px-6 py-4 text-slate-500">{{ h[4] or "—" }}</td>
+                                        <td class="px-4 py-4 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <form action="/delete-consumption-log" method="POST" onsubmit="return confirm('Delete this entry?');"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                                                <input type="hidden" name="log_id" value="{{ h[0] }}">
+                                                <button type="submit" class="text-slate-400 hover:text-rose-600 p-1 transition-colors">
+                                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="6" class="px-6 py-12 text-center text-slate-400 italic">No entries for {{ selected_item_name }} in {{ display_month_name }}.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <!-- Manage Consumption Items Modal -->
+    <div id="quickAddItemModalOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300 p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden transform scale-95 transition-transform duration-300 max-h-[85vh] flex flex-col" id="quickAddItemModalBox">
+            <div class="p-6 border-b border-slate-100 shrink-0">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mr-3 shrink-0">
+                        <i data-lucide="package-plus" class="w-5 h-5"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900">Manage Consumption Items</h3>
+                </div>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1 space-y-6">
+                <form action="/add-consumption-item" method="POST" class="space-y-3 bg-indigo-50/50 p-4 rounded-lg border border-indigo-100"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                    <input type="text" name="item_name" required placeholder="e.g. Wheat Flour" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <select name="unit" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <option value="kg">kg</option>
+                        <option value="liter">liter</option>
+                        <option value="piece">piece</option>
+                        <option value="cylinder">cylinder</option>
+                        <option value="packet">packet</option>
+                    </select>
+                    <button type="submit" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm">Add Item</button>
+                </form>
+
+                <div>
+                    <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Active Items</h4>
+                    <div class="space-y-2">
+                        {% for it in items %}
+                        <div class="flex items-center justify-between bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                            <span class="text-sm font-medium text-slate-700">{{ it[1] }} <span class="text-slate-400 font-normal">({{ it[2] }})</span></span>
+                            <form action="/deactivate-consumption-item" method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                                <input type="hidden" name="item_id" value="{{ it[0] }}">
+                                <button type="submit" onclick="return confirm('Archive {{ it[1] }}? Past entries stay intact, it just won\'t show up for new ones.');" class="text-slate-400 hover:text-amber-600 p-1 transition-colors" title="Archive Item">
+                                    <i data-lucide="archive" class="w-4 h-4"></i>
+                                </button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {% if archived_consumption_items %}
+                <div>
+                    <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Archived Items</h4>
+                    <div class="space-y-2 opacity-75">
+                        {% for it in archived_consumption_items %}
+                        <div class="flex items-center justify-between bg-slate-100 p-2.5 rounded-lg border border-slate-200">
+                            <span class="text-sm font-medium text-slate-500 line-through">{{ it[1] }} ({{ it[2] }})</span>
+                            <form action="/reactivate-consumption-item" method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                                <input type="hidden" name="item_id" value="{{ it[0] }}">
+                                <button type="submit" class="text-xs bg-white border border-slate-300 text-emerald-600 px-2.5 py-1 rounded hover:bg-emerald-50 transition-colors font-medium flex items-center shadow-sm">
+                                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5 mr-1"></i> Restore
+                                </button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="p-4 border-t border-slate-100 shrink-0">
+                <button type="button" onclick="closeQuickAddItemModal()" class="w-full bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        document.getElementById('datePicker').value = localISODate();
+
+        function navigateTo(itemId, month) {
+            window.location.href = `/consumption?item_id=${itemId}&month=${month}`;
+        }
+
+        const entryItemSelect = document.getElementById('entryItemSelect');
+        if (entryItemSelect) {
+            entryItemSelect.addEventListener('change', function() {
+                const unit = this.options[this.selectedIndex].dataset.unit;
+                document.getElementById('unitLabel').innerText = unit;
+            });
+        }
+
+        function openQuickAddItemModal() {
+            const overlay = document.getElementById('quickAddItemModalOverlay');
+            const box = document.getElementById('quickAddItemModalBox');
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+            lucide.createIcons();
+        }
+        function closeQuickAddItemModal() {
+            const overlay = document.getElementById('quickAddItemModalOverlay');
+            const box = document.getElementById('quickAddItemModalBox');
+            overlay.classList.add('opacity-0');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+
+        // Rate trend chart
+        const trendLabels = {{ six_month_trend.labels | tojson }};
+        const trendRates = {{ six_month_trend.rates | tojson }};
+        const palette = ['#6366f1', '#f59e0b', '#10b981', '#ec4899', '#0ea5e9', '#8b5cf6'];
+
+        if (trendLabels.length > 0) {
+            new Chart(document.getElementById('rateTrendChart'), {
+                type: 'bar',
+                data: {
+                    labels: trendLabels,
+                    datasets: [{
+                        label: 'Rate (₹)',
+                        data: trendRates,
+                        backgroundColor: palette,
+                        borderRadius: 6,
+                        maxBarThickness: 40
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { backgroundColor: '#1e293b', padding: 10, cornerRadius: 8, callbacks: { label: (ctx) => `₹${ctx.parsed.y.toLocaleString('en-IN')}` } }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { callback: (v) => '₹' + v } },
+                        x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        // Universal Prevent Double Submit Logic
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            // Use the button that was ACTUALLY clicked (e.submitter), not just
+            // "the first submit button in the form" -- some pages have more
+            // than one submit button in the same form.
+            const submitBtn = e.submitter || form.querySelector('button[type="submit"]');
+            if (submitBtn && !form.hasAttribute('onsubmit')) {
+                if (submitBtn.disabled) { e.preventDefault(); return; }
+                submitBtn.disabled = true;
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 mr-2 animate-spin inline"></i> Saving...';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+                setTimeout(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }, 4000);
+            }
+        });
+    </script>
+{% include 'features/command.html' %}<script src="/static/features.js" defer></script></body>
+</html>

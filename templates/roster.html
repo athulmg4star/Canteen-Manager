@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="/static/preferences.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Office Roster</title>
+    <script src="/static/vendor/tailwind-3.4.17.js"></script>
+    <script src="/static/vendor/lucide-0.468.0.js"></script>
+    <style>body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+<meta name="csrf-token" content="{{ csrf_token }}"><meta name="submission-token" content="{{ submission_token() }}"><script src="{{ url_for('static', filename='app.js') }}"></script><link rel="stylesheet" href="/static/features.css"></head>
+<body class="flex h-screen text-slate-800">
+
+    <!-- SIDEBAR -->
+    {% include 'sidebar.html' %}
+
+    <main class="flex-1 flex flex-col overflow-y-auto">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center px-8 shrink-0">
+            <h1 class="text-xl font-semibold">Office Roster & Staff Management</h1>
+        </header>
+
+        <div class="p-8 w-full space-y-8">
+            
+            <!-- ADD PERSONNEL CARD -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+                    <i data-lucide="user-plus" class="w-5 h-5 mr-2 text-indigo-600"></i> Add New Personnel
+                </h2>
+                <form action="/add-employee" method="POST" class="flex flex-col md:flex-row gap-4 items-end"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                    <div class="flex-1 w-full">
+                        <label class="block text-xs font-medium text-slate-600 mb-1.5">Full Name</label>
+                        <input type="text" name="name" required placeholder="e.g. Rahul Sharma" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div class="w-full md:w-1/4">
+                        <label class="block text-xs font-medium text-slate-600 mb-1.5">Branch / Dept</label>
+                        <input type="text" name="department" placeholder="e.g. Accounts" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div class="w-full md:w-1/4">
+                        <label class="block text-xs font-medium text-slate-600 mb-1.5">Opening Balance (₹)</label>
+                        <input type="number" name="opening_balance" step="0.01" placeholder="0.00" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <button type="submit" class="w-full md:w-auto bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors h-[38px] shrink-0">Add Staff</button>
+                </form>
+                <p class="text-xs text-slate-500 italic mt-3">Use a positive number if they owe money, negative if they have credit.</p>
+            </div>
+
+            <!-- ROSTER DATABASE GRID -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <!-- Header & Search -->
+                <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <h2 class="text-lg font-semibold text-slate-900 flex items-center">
+                        <i data-lucide="users" class="w-5 h-5 mr-2 text-indigo-600"></i> Office Roster Database
+                    </h2>
+                    
+                    <div class="relative w-full sm:w-80">
+                        <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"></i>
+                        <input type="text" id="rosterSearch" onkeyup="filterRoster()" placeholder="Search staff by name..." class="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm bg-white">
+                    </div>
+                </div>
+
+                <!-- Scrolling Grid Area -->
+                <div class="p-6 bg-slate-50/50 overflow-y-auto max-h-[600px]">
+                    
+                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span> Active Staff
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 mb-8">
+                        {% for emp in employees %}
+                        <div class="roster-item bg-white flex items-center justify-between p-4 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-400 transition-all group">
+                            <div>
+                                <p class="staff-name font-bold text-slate-800 text-sm">{{ emp[1] }}</p>
+                                <p class="text-[11px] text-slate-500 mt-0.5 uppercase tracking-wide">{{ emp[2] }}</p>
+                                <p class="text-xs text-slate-600 mt-1.5 bg-slate-100 inline-block px-2 py-0.5 rounded">Base Bal: <span class="font-semibold text-slate-900">₹{{ "%.2f"|format(emp[4]) }}</span></p>
+                            </div>
+                            <div class="flex flex-col space-y-1">
+                                <!-- NEW: Full 360 Profile Page -->
+                                <a href="/employee/{{ emp[0] }}" class="text-slate-400 hover:text-indigo-600 p-1.5 rounded hover:bg-indigo-50 transition-colors" title="View Full 360 Profile">
+                                    <i data-lucide="user-round" class="w-4 h-4"></i>
+                                </a>
+                                <!-- NEW: View Profile Button -->
+                                <button onclick="viewProfile({{ emp[0] }})" class="text-slate-400 hover:text-indigo-600 p-1.5 rounded hover:bg-indigo-50 transition-colors" title="Quick Account Statement">
+                                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                                </button>
+                                
+                                <button onclick="editStaff(`{{ emp[0] }}`, `{{ emp[1] }}`, `{{ emp[2] }}`, `{{ emp[4] }}`)" class="text-slate-400 hover:text-blue-600 p-1.5 rounded hover:bg-blue-50 transition-colors" title="Edit Profile">
+                                    <i data-lucide="edit-2" class="w-4 h-4"></i>
+                                </button>
+                                <button type="button" onclick="openArchiveStaffModal('{{ emp[0] }}', '{{ emp[1] }}')" class="text-slate-400 hover:text-amber-600 p-1.5 rounded hover:bg-amber-50 transition-colors" title="Archive Employee">
+                                    <i data-lucide="archive" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+            
+                </div>
+            </div>
+            <!-- STANDALONE ARCHIVED STAFF CARD -->
+            {% if archived_employees %}
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+                    <i data-lucide="archive-restore" class="w-5 h-5 mr-2 text-slate-400"></i> Archived Staff Database
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                    {% for emp in archived_employees %}
+                    <div class="roster-item bg-slate-100 flex items-center justify-between p-4 rounded-xl border border-slate-200 opacity-75 grayscale hover:grayscale-0 transition-all">
+                        <div>
+                            <p class="staff-name font-semibold text-slate-600 text-sm line-through">{{ emp[1] }}</p>
+                            <p class="text-[11px] text-slate-500 mt-0.5 uppercase tracking-wide">{{ emp[2] }}</p>
+                            <p class="text-xs text-slate-500 mt-1.5">Bal: ₹{{ "%.2f"|format(emp[4]) }}</p>
+                        </div>
+                        <div class="flex flex-col items-end space-y-2">
+                            <form action="/reactivate-employee" method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                                <input type="hidden" name="emp_id" value="{{ emp[0] }}">
+                                <button type="submit" class="text-[11px] bg-white border border-slate-300 text-emerald-600 px-2 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors font-semibold flex items-center shadow-sm">
+                                    <i data-lucide="user-check" class="w-3 h-3 mr-1"></i> Restore
+                                </button>
+                            </form>
+                            <button type="button" onclick="openDeleteStaffModal('{{ emp[0] }}')" class="text-[11px] text-rose-500 hover:text-rose-700 flex items-center font-medium mt-1">
+                                <i data-lucide="trash-2" class="w-3 h-3 mr-1"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <!-- MODALS & SCRIPTS (Moved exactly from Settings) -->
+    <div id="editModalOverlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="editModalBox">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                <h3 class="font-semibold text-slate-800 flex items-center"><i data-lucide="user-edit" class="w-4 h-4 mr-2 text-indigo-600"></i> Edit Staff Profile</h3>
+                <button type="button" onclick="closeEditModal()" class="text-slate-400 hover:text-rose-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-6">
+                <form action="/edit-employee" method="POST" class="space-y-4"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                    <input type="hidden" name="emp_id" id="modal_emp_id">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                        <input type="text" name="new_name" id="modal_emp_name" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Department / Branch</label>
+                        <input type="text" name="new_dept" id="modal_emp_dept" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Base Balance (₹)</label>
+                        <input type="number" name="new_balance" id="modal_emp_balance" step="0.01" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div class="pt-3 flex space-x-3">
+                        <button type="button" onclick="closeEditModal()" class="flex-1 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+                        <button type="submit" class="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="archiveStaffOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="archiveStaffBox">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-4"><i data-lucide="archive" class="w-8 h-8"></i></div>
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Archive <span id="archive_staff_name_display">Staff</span>?</h3>
+                <p class="text-sm text-slate-500 mb-6">Past records will be kept safe for billing, but they will be removed from the active roster.</p>
+                <form action="/deactivate-employee" method="POST" class="flex space-x-3"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                    <input type="hidden" name="emp_id" id="archive_staff_id">
+                    <button type="button" onclick="closeModal('archiveStaffOverlay', 'archiveStaffBox')" class="flex-1 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+                    <button type="submit" class="flex-1 bg-amber-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-amber-600 transition-colors shadow-sm">Yes, Archive</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteStaffOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="deleteStaffBox">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4"><i data-lucide="alert-octagon" class="w-8 h-8"></i></div>
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Permanently Delete?</h3>
+                <p class="text-sm text-slate-500 mb-6"><strong>DANGER:</strong> Only do this for accidental duplicates. This permanently erases them.</p>
+                <form action="/hard-delete" method="POST" class="flex space-x-3"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">
+                    <input type="hidden" name="emp_id" id="delete_staff_id">
+                    <button type="button" onclick="closeModal('deleteStaffOverlay', 'deleteStaffBox')" class="flex-1 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+                    <button type="submit" class="flex-1 bg-rose-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-rose-700 transition-colors shadow-sm">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- Staff Profile & History Modal -->
+    <div id="profileOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[85vh]" id="profileBox">
+            
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center shrink-0">
+                <h3 class="font-semibold text-slate-800 flex items-center">
+                    <i data-lucide="user" class="w-4 h-4 mr-2 text-indigo-600"></i> Statement of Account
+                </h3>
+                <button type="button" onclick="closeModal('profileOverlay', 'profileBox')" class="text-slate-400 hover:text-rose-500 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto" id="profileContent">
+                <!-- Loading Spinner -->
+                <div id="profileLoading" class="flex flex-col items-center justify-center py-12">
+                    <i data-lucide="loader-2" class="w-8 h-8 text-indigo-600 animate-spin mb-4"></i>
+                    <p class="text-sm text-slate-500">Fetching ledger history...</p>
+                </div>
+
+                <!-- Actual Content (Hidden by Default) -->
+                <div id="profileData" class="hidden">
+                    
+                    <!-- Header Info -->
+                    <div class="flex justify-between items-start mb-8 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                        <div>
+                            <h2 class="text-2xl font-bold text-slate-900" id="profName">Name</h2>
+                            <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mt-1" id="profDept">Dept</p>
+                        </div>
+                        <div class="text-right bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+                            <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-0.5">Total Outstanding</p>
+                            <p class="text-xl font-bold" id="profDue">₹0.00</p>
+                        </div>
+                    </div>
+
+                    <!-- History Table -->
+                    <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center">
+                        <i data-lucide="calendar" class="w-3.5 h-3.5 mr-1.5"></i> Month-by-Month Breakdown
+                    </h4>
+                    
+                    <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                    <th class="px-4 py-3">Month</th>
+                                    <th class="px-4 py-3 text-right">Amount Billed</th>
+                                    <th class="px-4 py-3 text-right">Amount Paid</th>
+                                </tr>
+                            </thead>
+                            <tbody id="profHistoryTable" class="divide-y divide-slate-100 text-sm">
+                                <!-- JS will inject rows here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        lucide.createIcons();
+
+        function filterRoster() {
+            const input = document.getElementById('rosterSearch');
+            const filter = input.value.toLowerCase();
+            const items = document.querySelectorAll('.roster-item');
+            
+            items.forEach(item => {
+                const name = item.querySelector('.staff-name').innerText.toLowerCase();
+                if (name.includes(filter)) item.style.display = "";
+                else item.style.display = "none";
+            });
+        }
+
+        function editStaff(id, currentName, currentDept, currentBalance) {
+            if (currentDept === 'None') currentDept = '';
+            if (currentBalance === 'None' || !currentBalance) currentBalance = '0.00';
+
+            document.getElementById('modal_emp_id').value = id;
+            document.getElementById('modal_emp_name').value = currentName;
+            document.getElementById('modal_emp_dept').value = currentDept;
+            document.getElementById('modal_emp_balance').value = currentBalance;
+            
+            const overlay = document.getElementById('editModalOverlay');
+            const box = document.getElementById('editModalBox');
+            
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeEditModal() {
+            const overlay = document.getElementById('editModalOverlay');
+            const box = document.getElementById('editModalBox');
+            overlay.classList.add('opacity-0');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+
+        function closeModal(overlayId, boxId) {
+            const overlay = document.getElementById(overlayId);
+            const box = document.getElementById(boxId);
+            overlay.classList.add('opacity-0');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+
+        function openModal(overlayId, boxId) {
+            const overlay = document.getElementById(overlayId);
+            const box = document.getElementById(boxId);
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+        }
+
+        function openArchiveStaffModal(id, name) {
+            document.getElementById('archive_staff_id').value = id;
+            document.getElementById('archive_staff_name_display').innerText = name;
+            openModal('archiveStaffOverlay', 'archiveStaffBox');
+        }
+
+        function openDeleteStaffModal(id) {
+            document.getElementById('delete_staff_id').value = id;
+            openModal('deleteStaffOverlay', 'deleteStaffBox');
+        }
+    async function viewProfile(empId) {
+            // Open the modal and show loading spinner
+            openModal('profileOverlay', 'profileBox');
+            document.getElementById('profileLoading').classList.remove('hidden');
+            document.getElementById('profileData').classList.add('hidden');
+
+            try {
+                // Fetch the data from Python
+                const response = await fetch(`/api/staff-history/${empId}`);
+                const data = await response.json();
+
+                if (data.error) throw new Error(data.error);
+
+                // Populate Header
+                document.getElementById('profName').innerText = data.name;
+                document.getElementById('profDept').innerText = data.department;
+                
+                const dueEl = document.getElementById('profDue');
+                dueEl.innerText = `₹${data.current_due.toFixed(2)}`;
+                if (data.current_due > 0) dueEl.className = 'text-xl font-bold text-rose-600';
+                else if (data.current_due < 0) dueEl.className = 'text-xl font-bold text-emerald-600';
+                else dueEl.className = 'text-xl font-bold text-slate-700';
+
+                // Populate Table
+                const tbody = document.getElementById('profHistoryTable');
+                tbody.innerHTML = ''; // Clear old data
+
+                if (data.history.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="3" class="px-4 py-8 text-center text-slate-500 italic">No billing history found.</td></tr>`;
+                } else {
+                    data.history.forEach(row => {
+                        // Only show consumption text if there were actual meals logged
+                        const consumptionHtml = row.consumption ? `<div class="text-[11px] text-slate-500 mt-1 leading-relaxed max-w-[200px]">${row.consumption}</div>` : '';
+                        
+                        tbody.innerHTML += `
+                            <tr class="hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0">
+                                <td class="px-4 py-3 align-top">
+                                    <span class="font-medium text-slate-800">${row.month_name}</span>
+                                    ${consumptionHtml}
+                                </td>
+                                <td class="px-4 py-3 text-right text-rose-600 font-medium align-top whitespace-nowrap">+₹${row.billed.toFixed(2)}</td>
+                                <td class="px-4 py-3 text-right text-emerald-600 font-medium align-top whitespace-nowrap">-₹${row.paid.toFixed(2)}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                // Hide loading, show data
+                document.getElementById('profileLoading').classList.add('hidden');
+                document.getElementById('profileData').classList.remove('hidden');
+                lucide.createIcons();
+
+            } catch (err) {
+                console.error(err);
+                alert("Failed to load staff history.");
+                closeModal('profileOverlay', 'profileBox');
+            }
+        }
+    </script>
+{% include 'features/command.html' %}<script src="/static/features.js" defer></script></body>
+</html>

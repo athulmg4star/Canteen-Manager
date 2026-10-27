@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="/static/preferences.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ emp_name }} — Profile</title>
+    <script src="/static/vendor/tailwind-3.4.17.js"></script>
+    <script src="/static/vendor/lucide-0.468.0.js"></script>
+    <style>body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+<meta name="csrf-token" content="{{ csrf_token }}"><meta name="submission-token" content="{{ submission_token() }}"><script src="{{ url_for('static', filename='app.js') }}"></script><link rel="stylesheet" href="/static/features.css"></head>
+<body class="flex h-screen text-slate-800">
+
+    {% include 'sidebar.html' %}
+
+    <main class="flex-1 flex flex-col overflow-y-auto">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center px-8 shrink-0">
+            <a href="/roster" class="text-slate-400 hover:text-indigo-600 mr-4 transition-colors">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </a>
+            <h1 class="text-xl font-semibold">Employee Profile</h1><a href="/timeline/{{ emp_id }}" class="button subtle">Account timeline ↗</a>
+        </header>
+
+        <div class="p-8 max-w-6xl w-full mx-auto space-y-6">
+
+            <!-- Header card -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex items-center justify-between flex-wrap gap-4">
+                <div class="flex items-center">
+                    <div class="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-2xl font-bold mr-5 shrink-0">
+                        {{ emp_name[0] }}
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-2xl font-bold text-slate-900">{{ emp_name }}</h2>
+                            {% if not is_active %}
+                            <span class="bg-slate-100 text-slate-500 text-[11px] font-semibold px-2 py-1 rounded-full">Archived</span>
+                            {% endif %}
+                        </div>
+                        <p class="text-sm text-indigo-600 font-medium uppercase tracking-wide mt-1">{{ emp_dept }}</p>
+                    </div>
+                </div>
+                <div class="text-right bg-slate-50 px-5 py-3 rounded-lg border border-slate-200">
+                    <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-0.5">Current Balance</p>
+                    <p class="text-2xl font-bold {% if current_due > 0.005 %}text-rose-600{% elif current_due < -0.005 %}text-emerald-600{% else %}text-slate-700{% endif %}">
+                        {% if current_due > 0.005 %}+{% endif %}₹{{ "%.2f"|format(current_due) }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Quick stats -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Lifetime Billed</p>
+                    <p class="text-lg font-bold text-slate-800">₹{{ "%.2f"|format(total_billed) }}</p>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Lifetime Paid</p>
+                    <p class="text-lg font-bold text-slate-800">₹{{ "%.2f"|format(total_paid) }}</p>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Active Months</p>
+                    <p class="text-lg font-bold text-slate-800">{{ active_months }}</p>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Avg Monthly Bill</p>
+                    <p class="text-lg font-bold text-slate-800">₹{{ "%.2f"|format(avg_monthly_bill) }}</p>
+                </div>
+            </div>
+
+            {% if loans|length > 0 %}
+            <!-- Staff loan status -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden {% if outstanding_loan_total > 0 %}border-l-4 border-l-amber-500{% endif %}">
+                <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center">
+                        <i data-lucide="hand-coins" class="w-4 h-4 mr-2 text-amber-600"></i> Staff Loans
+                    </h3>
+                    {% if outstanding_loan_total > 0 %}
+                    <span class="text-xs font-semibold text-amber-700">₹{{ "%.2f"|format(outstanding_loan_total) }} owed back</span>
+                    {% endif %}
+                </div>
+                <div class="divide-y divide-slate-100">
+                    {% for loan in loans %}
+                    <div class="px-6 py-3 flex items-center justify-between text-sm">
+                        <div>
+                            <span class="font-medium text-slate-800">₹{{ "%.2f"|format(loan[1]) }}</span>
+                            <span class="text-slate-500 ml-2">{{ loan[2] }} · {{ 'Bill Credit' if loan[3] == 'bill_credit' else 'Cash' }}</span>
+                        </div>
+                        {% if loan[4] == 'outstanding' %}
+                        <span class="bg-amber-100 text-amber-700 text-[11px] font-semibold px-2 py-1 rounded-full">Outstanding</span>
+                        {% else %}
+                        <span class="bg-emerald-100 text-emerald-700 text-[11px] font-semibold px-2 py-1 rounded-full">Settled {{ loan[5] }}</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- Item favorites -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between flex-wrap gap-3">
+                        <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center">
+                            <i data-lucide="star" class="w-4 h-4 mr-2 text-indigo-500"></i> Consumption Breakdown ({{ breakdown_period_label }})
+                        </h3>
+                        <div class="relative">
+                            <i data-lucide="calendar-days" class="w-3.5 h-3.5 text-indigo-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                            <select onchange="window.location.href='/employee/{{ emp_id }}?breakdown_period='+this.value" class="appearance-none pl-8 pr-7 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 bg-white shadow-sm hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+                                <option value="lifetime" {% if breakdown_period == 'lifetime' %}selected{% endif %}>Lifetime</option>
+                                {% for m in available_breakdown_months %}
+                                <option value="{{ m.value }}" {% if m.value == breakdown_period %}selected{% endif %}>{{ m.label }}</option>
+                                {% endfor %}
+                            </select>
+                            <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                        </div>
+                    </div>
+                    <div class="p-6 space-y-3">
+                        {% for item in item_breakdown %}
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="font-medium text-slate-700">{{ item[0] }} <span class="text-slate-400 font-normal">x{{ item[1] }}</span></span>
+                                <span class="font-semibold text-slate-800">₹{{ "%.2f"|format(item[2]) }}</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                <div class="bg-indigo-500 h-2 rounded-full" style="width: {{ (item[2] / max_item_total * 100) if max_item_total else 0 }}%"></div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <p class="text-sm text-slate-400 italic text-center py-4">No meals logged for {{ breakdown_period_label }}.</p>
+                        {% endfor %}
+                    </div>
+                    {% if item_breakdown %}
+                    <div class="px-6 py-3 border-t-2 border-slate-100 bg-slate-50 flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">Total ({{ item_breakdown|length }} items)</span>
+                        <div class="text-right">
+                            <span class="text-xs text-slate-500 mr-2">{{ breakdown_total_qty }} servings</span>
+                            <span class="font-bold text-slate-900">₹{{ "%.2f"|format(breakdown_total_amount) }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Month by month -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                        <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center">
+                            <i data-lucide="calendar" class="w-4 h-4 mr-2 text-indigo-500"></i> Month-by-Month
+                        </h3>
+                    </div>
+                    <div class="overflow-y-auto max-h-64">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead class="sticky top-0 bg-white border-b border-slate-100">
+                                <tr class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                    <th class="px-6 py-2">Month</th>
+                                    <th class="px-6 py-2 text-right">Billed</th>
+                                    <th class="px-6 py-2 text-right">Paid</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for row in monthly_history %}
+                                <tr>
+                                    <td class="px-6 py-2.5 font-medium text-slate-700">{{ row.month_name }}</td>
+                                    <td class="px-6 py-2.5 text-right text-rose-600">+₹{{ "%.2f"|format(row.billed) }}</td>
+                                    <td class="px-6 py-2.5 text-right text-emerald-600">-₹{{ "%.2f"|format(row.paid) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="3" class="px-6 py-8 text-center text-slate-400 italic">No history yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- Recent meals -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                        <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center">
+                            <i data-lucide="utensils" class="w-4 h-4 mr-2 text-indigo-500"></i> Recent Meals
+                        </h3>
+                    </div>
+                    <div class="overflow-y-auto max-h-72">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <tbody class="divide-y divide-slate-100">
+                                {% for m in recent_meals %}
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-6 py-2.5 text-slate-500 text-xs whitespace-nowrap">{{ m[1] }}</td>
+                                    <td class="px-4 py-2.5 font-medium text-slate-700">{{ m[2] }} x{{ m[3] }}</td>
+                                    <td class="px-6 py-2.5 text-right text-slate-600">₹{{ "%.2f"|format(m[3] * m[4]) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td class="px-6 py-8 text-center text-slate-400 italic">No meals logged yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Recent payments -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                        <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center">
+                            <i data-lucide="credit-card" class="w-4 h-4 mr-2 text-indigo-500"></i> Recent Payments
+                        </h3>
+                    </div>
+                    <div class="overflow-y-auto max-h-72">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <tbody class="divide-y divide-slate-100">
+                                {% for p in recent_payments %}
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-6 py-2.5 text-slate-500 text-xs whitespace-nowrap">{{ p[1] }}</td>
+                                    <td class="px-6 py-2.5 text-right font-semibold text-emerald-600">₹{{ "%.2f"|format(p[2]) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td class="px-6 py-8 text-center text-slate-400 italic">No payments recorded yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        lucide.createIcons();
+    </script>
+{% include 'features/command.html' %}<script src="/static/features.js" defer></script></body>
+</html>
