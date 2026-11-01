@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ title }} · Tiffin Manager</title>
+<script src="/static/preferences.js"></script><script src="/static/vendor/tailwind-3.4.17.js"></script><script src="/static/vendor/lucide-0.468.0.js"></script>
+<link rel="stylesheet" href="/static/app.css"><link rel="stylesheet" href="/static/features.css"><script src="/static/app.js"></script>
+<meta name="csrf-token" content="{{ csrf_token }}"><meta name="submission-token" content="{{ submission_token() }}">
+{% block head %}{% endblock %}</head><body class="flex h-screen text-slate-800">
+{% include 'sidebar.html' %}
+<main class="flex-1 flex flex-col overflow-y-auto"><header class="feature-header"><div><p class="eyebrow">YOUR OFFICE CANTEEN</p><h1>{{ title }}</h1></div><div class="header-actions"><button type="button" data-command-open class="button subtle">Search <kbd>⌘ / Ctrl K</kbd></button><a class="icon-button" href="/preferences" aria-label="Appearance preferences"><i data-lucide="sliders-horizontal"></i></a></div></header>
+<div class="p-8 feature-page">
+{% if request.args.get('success') %}<div role="status" class="notice success">Saved successfully. <a href="/audit">View change history</a></div>{% endif %}
+{% block content %}{% endblock %}</div></main>
+{% include 'features/command.html' %}
+<script>lucide.createIcons();</script><script src="/static/features.js" defer></script>{% block scripts %}{% endblock %}
+</body></html>

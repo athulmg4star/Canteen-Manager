@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Ledger Entry</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        /* Hides the up/down arrows inside number inputs for a cleaner grid */
+        input[type="number"]::-webkit-inner-spin-button, 
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
+</head>
+<body class="flex h-screen text-slate-800 overflow-hidden">
+
+    <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0">
+        <div class="h-32 flex items-center justify-center border-b border-slate-200 bg-white p-4">
+            <img src="{{ url_for('static', filename='tiffin_banner.jpg') }}" alt="Tiffin Room" class="h-full w-auto object-contain">
+        </div>
+     <nav class="flex-1 p-4 space-y-2">
+    <a href="/" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i> Dashboard
+    </a>
+    <a href="/roster" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="users" class="w-5 h-5 mr-3"></i> Office Roster
+    </a>
+    <a href="/bulk-log" class="flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 font-medium rounded-lg">
+        <i data-lucide="layers" class="w-5 h-5 mr-3"></i> Bulk Month Entry
+    </a>
+    <a href="/log-meals" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="pen-tool" class="w-5 h-5 mr-3"></i> Single Entry
+    </a>
+    <a href="/payments" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="credit-card" class="w-5 h-5 mr-3"></i> Payments Ledger
+    </a>
+    <a href="/staff-loans" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="hand-coins" class="w-5 h-5 mr-3"></i> Staff Loans
+    </a>
+    <a href="/purchases" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="shopping-cart" class="w-5 h-5 mr-3"></i> Expense Tracker
+    </a>
+    <a href="/consumption" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="package" class="w-5 h-5 mr-3"></i> Consumption
+    </a>
+    <a href="/manager-fund" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="wallet" class="w-5 h-5 mr-3"></i> Manager's Fund
+    </a>
+    <a href="/history" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="history" class="w-5 h-5 mr-3"></i> Ledger History
+    </a>
+    <a href="/recycle-bin" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="trash-2" class="w-5 h-5 mr-3"></i> Recycle Bin
+    </a>
+    <hr class="my-4 border-slate-200">
+    <a href="/settings" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="settings" class="w-5 h-5 mr-3"></i> System Settings
+    </a>
+    <a href="/billing" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="receipt" class="w-5 h-5 mr-3"></i> WhatsApp Billing
+    </a>
+    <a href="/weekly-confirmation" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="clipboard-check" class="w-5 h-5 mr-3"></i> Weekly Confirmation
+    </a>
+</nav>
+        
+        <div class="px-5 py-4 border-t border-slate-200 bg-slate-50 mt-auto">
+            <div class="text-[10px] text-slate-400 leading-relaxed">
+                <p class="font-bold text-slate-700 tracking-wide uppercase mb-1.5">TRMS Enterprise v2.0</p>
+                <p>Developed by: <span class="font-medium text-slate-500">Athul M G</span></p>
+                <p>Canteen Manager: <span class="font-medium text-slate-500">{{ canteen_manager }}</span></p>
+                
+                {% if committee_members %}
+                <p class="mt-1.5 pt-1.5 border-t border-slate-200/60 leading-tight">
+                    Committee Members: <br>
+                    <span class="font-medium text-slate-500">{{ committee_members }}</span>
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+
+</aside>
+
+    <main class="flex-1 flex flex-col h-full">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+            <h1 class="text-xl font-semibold">End of Month Bulk Settlement</h1>
+            <a href="/meal-calendar" class="inline-flex items-center px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 hover:border-indigo-300 transition-colors shadow-sm text-sm">
+                <i data-lucide="calendar-days" class="w-4 h-4 mr-2 text-indigo-600"></i> Meal Calendar
+            </a>
+        </header>
+
+        <div class="p-8 flex-1 overflow-hidden flex flex-col">
+            {% if success %}
+            <div class="mb-6 bg-green-50 text-green-700 p-4 rounded-lg flex items-center border border-green-200 shrink-0">
+                <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>
+                Bulk monthly entries saved successfully! Master PDF is ready for generation.
+            </div>
+            {% endif %}
+
+            <div id="dateNoteBanner" class="mb-4 bg-amber-50 text-amber-800 p-3 rounded-lg border border-amber-200 shrink-0 text-sm hidden flex items-start">
+                <i data-lucide="alert-triangle" class="w-4 h-4 mr-2 mt-0.5 shrink-0"></i><span id="dateNoteText"></span>
+            </div>
+
+            <div id="savedBanner" class="mb-4 bg-emerald-50 text-emerald-700 p-3 rounded-lg flex items-center border border-emerald-200 shrink-0 text-sm hidden">
+                <i data-lucide="check-check" class="w-4 h-4 mr-2 shrink-0"></i>
+                <span id="savedBannerText">Loading what's already saved for this date...</span>
+                <span class="ml-auto flex items-center text-emerald-500">
+                    <span class="w-3 h-3 rounded bg-emerald-100 border-2 border-emerald-500 mr-1.5 inline-block"></span> already saved
+                </span>
+            </div>
+
+            <form id="bulkLogForm" action="/bulk-log" method="POST" class="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col flex-1 overflow-hidden">
+                
+                <div class="p-6 border-b border-slate-200 bg-slate-50 shrink-0 flex items-center justify-between">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Set Entry Date (e.g., End of Month)</label>
+                        <input type="date" name="log_date" required id="datePicker" class="w-64 border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button type="button" onclick="runEntryCheck(false)" class="bg-white border border-slate-300 text-slate-700 px-4 py-2.5 rounded-lg shadow-sm hover:bg-slate-50 font-medium text-sm inline-flex items-center">
+                            <i data-lucide="shield-check" class="w-4 h-4 mr-2 text-emerald-600"></i> Check entries
+                        </button>
+                    <button type="submit" class="bg-indigo-600 text-white px-8 py-2.5 rounded-lg shadow-sm hover:bg-indigo-700 font-medium">
+                        Save Complete Roster
+                    </button>
+                    </div>
+                </div>
+
+                <div class="overflow-auto flex-1">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="sticky top-0 bg-slate-100 shadow-sm z-10">
+                            <tr class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                <th class="px-6 py-4 border-b border-slate-200">Staff Member</th>
+                                <th class="px-3 py-4 border-b border-slate-200 text-center">Status</th>
+                                {% for item in items %}
+                                <th class="px-3 py-4 border-b border-slate-200 text-center" data-item-name="{{ item[1] }}">{{ item[1] }}</th>
+                                {% endfor %}
+                                <th class="px-3 py-4 border-b border-slate-200 text-center bg-indigo-50 text-indigo-700">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for emp in employees %}
+                            <tr class="hover:bg-indigo-50/30 transition-colors" data-emp-row="{{ emp[0] }}">
+                                <td class="px-6 py-3">
+                                    <div class="font-medium text-slate-900">{{ emp[1] }}</div>
+                                    <div class="text-xs text-slate-500">{{ emp[2] }}</div>
+                                </td>
+                                <td class="px-3 py-3 text-center">
+                                    <button type="button" onclick="toggleAbsent({{ emp[0] }}, this)" class="absent-toggle-btn inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium border bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100 transition-colors">
+                                        <i data-lucide="user-check" class="w-3 h-3 mr-1"></i> Present
+                                    </button>
+                                </td>
+                                {% for item in items %}
+                                <td class="px-2 py-3 text-center">
+                                    <input type="number" name="qty_{{ emp[0] }}_{{ item[1] }}" min="0" placeholder="-" data-price="{{ item[2] }}"
+                                           class="qty-input w-16 border border-slate-300 rounded bg-white px-2 py-1.5 text-center text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+                                </td>
+                                {% endfor %}
+                                <td class="px-3 py-3 text-center font-semibold text-indigo-700 bg-indigo-50/40 whitespace-nowrap" id="rowTotal_{{ emp[0] }}">₹0.00</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="bg-slate-100 font-bold border-t-2 border-slate-300 sticky bottom-0">
+                                <td colspan="2" class="px-6 py-3 text-right text-slate-700">Column Totals</td>
+                                {% for item in items %}
+                                <td class="px-3 py-3 text-center text-slate-700 whitespace-nowrap" data-item-name="{{ item[1] }}">
+                                    <div class="itemTotal-qty" id="itemTotalQty_{{ item[1] }}">0</div>
+                                    <div class="itemTotal-amt text-[10px] font-normal text-slate-400" id="itemTotalAmt_{{ item[1] }}">₹0.00</div>
+                                </td>
+                                {% endfor %}
+                                <td class="px-3 py-3 text-center text-indigo-700 whitespace-nowrap" id="grandTotalAmount">₹0.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </form>
+        </div>
+    </main>
+
+
+    <!-- Entry check modal -->
+    <div id="checkModalOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300 p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center">
+                <i id="checkModalIcon" data-lucide="shield-alert" class="w-5 h-5 mr-2 text-amber-600"></i>
+                <h3 id="checkModalTitle" class="font-semibold text-slate-800">Please double-check</h3>
+            </div>
+            <div id="checkModalBody" class="p-6 overflow-y-auto space-y-3 text-sm"></div>
+            <div class="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3" id="checkModalButtons"></div>
+        </div>
+    </div>
+    <script>
+        lucide.createIcons();
+        document.getElementById('datePicker').valueAsDate = new Date();
+        // Arriving from the Meal Calendar: open straight on the clicked date
+        (function () {
+            const qd = new URLSearchParams(window.location.search).get('date');
+            if (qd && /^\d{4}-\d{2}-\d{2}$/.test(qd)) document.getElementById('datePicker').value = qd;
+        })();
+
+        // Distinct highlight for a cell that's ALREADY SAVED for this date --
+        // deliberately a different color from a plain box so it's obvious
+        // at a glance which cells are real saved data.
+        function markSaved(input) {
+            input.style.backgroundColor = '#ecfdf5';   // emerald-50
+            input.style.borderColor = '#10b981';        // emerald-500
+            input.style.borderWidth = '2px';
+            input.style.color = '#047857';               // emerald-700
+            input.style.fontWeight = '700';
+            input.classList.add('saved-cell');
+            input.title = 'Already saved for this date';
+        }
+        function clearSavedMark(input) {
+            if (!input.classList.contains('saved-cell')) return;
+            input.style.backgroundColor = '';
+            input.style.borderColor = '';
+            input.style.borderWidth = '';
+            input.style.color = '';
+            input.style.fontWeight = '';
+            input.classList.remove('saved-cell');
+            input.removeAttribute('title');
+        }
+
+        // Guards against a race condition: if the date is changed again
+        // before an in-flight fetch resolves, the OLD (now-stale) response
+        // must never be allowed to write into the DOM -- otherwise a quick
+        // date change can leave stale data from the
+        // PREVIOUS date, or wipe out ones for the date actually being viewed.
+        let bulkLogRequestGen = 0;
+
+        // Loads whatever's already saved for the selected date and fills +
+        // highlights those cells, so revisiting a partially-completed date
+        // immediately shows where things were left off.
+        async function loadExistingEntries() {
+            const myGen = ++bulkLogRequestGen;
+            const date = document.getElementById('datePicker').value;
+            const savedBanner = document.getElementById('savedBanner');
+            const savedBannerText = document.getElementById('savedBannerText');
+            if (!date) return;
+
+            // Clear any previous saved-marks before loading the new date's data
+            document.querySelectorAll('.qty-input.saved-cell').forEach(input => {
+                clearSavedMark(input);
+                input.value = '';
+                delete input.dataset.userEdited;
+            });
+
+            try {
+                const res = await fetch(`/api/bulk-log-existing?date=${date}`);
+                const existing = await res.json();
+                if (myGen !== bulkLogRequestGen) return; // a newer date change happened meanwhile -- discard
+
+                let savedCount = 0;
+                for (const [empId, items] of Object.entries(existing)) {
+                    const row = document.querySelector(`tr[data-emp-row="${empId}"]`);
+                    if (!row) continue;
+                    for (const [itemName, qty] of Object.entries(items)) {
+                        const input = row.querySelector(`input[name="qty_${empId}_${itemName}"]`);
+                        if (input) {
+                            input.value = qty;
+                            input.dataset.userEdited = "1"; // treat as real saved data
+                            markSaved(input);
+                            savedCount++;
+                        }
+                    }
+                }
+
+                if (savedCount > 0) {
+                    savedBannerText.innerText = `${savedCount} entries already saved for this date (highlighted in green below). Add the rest and save again — nothing will be duplicated.`;
+                    savedBanner.classList.remove('hidden');
+                } else {
+                    savedBanner.classList.add('hidden');
+                }
+                updateAllTotals();
+            } catch (e) {
+                console.error('Failed to load existing entries:', e);
+                if (myGen === bulkLogRequestGen) savedBanner.classList.add('hidden');
+            }
+        }
+
+        // Track which inputs the manager has touched by hand.
+        document.querySelectorAll('.qty-input').forEach(input => {
+            input.addEventListener('input', function() {
+                this.dataset.userEdited = "1";
+                clearSavedMark(this); // now being actively edited, not just "as saved"
+                updateRowTotal(this.closest('tr[data-emp-row]'));
+                updateGrandTotal();
+            });
+        });
+
+        // Recomputes one staff member's row total (sum of qty x item price)
+        // and writes it into that row's Total cell.
+        function updateRowTotal(row) {
+            if (!row) return;
+            const empId = row.getAttribute('data-emp-row');
+            const cell = document.getElementById(`rowTotal_${empId}`);
+            if (!cell) return;
+            let total = 0;
+            row.querySelectorAll('.qty-input').forEach(input => {
+                const qty = parseFloat(input.value) || 0;
+                const price = parseFloat(input.dataset.price) || 0;
+                total += qty * price;
+            });
+            cell.innerText = `₹${total.toFixed(2)}`;
+        }
+
+        // Recomputes the bottom summary: total quantity AND total amount for
+        // EACH item (one pair of numbers per column, matching what's
+        // actually being logged), plus the grand total amount across all rows.
+        function updateGrandTotal() {
+            const perItemQty = {};
+            const perItemAmt = {};
+            let totalAmount = 0;
+            document.querySelectorAll('tbody tr[data-emp-row]').forEach(row => {
+                if (row.classList.contains('absent-row')) return;
+                row.querySelectorAll('.qty-input').forEach(input => {
+                    const qty = parseFloat(input.value) || 0;
+                    const price = parseFloat(input.dataset.price) || 0;
+                    const itemName = input.name.replace(/^qty_\d+_/, '');
+                    perItemQty[itemName] = (perItemQty[itemName] || 0) + qty;
+                    perItemAmt[itemName] = (perItemAmt[itemName] || 0) + (qty * price);
+                    totalAmount += qty * price;
+                });
+            });
+            document.querySelectorAll('[id^="itemTotalQty_"]').forEach(cell => {
+                const itemName = cell.id.replace(/^itemTotalQty_/, '');
+                const qty = perItemQty[itemName] || 0;
+                cell.innerText = qty > 0 ? qty : '-';
+            });
+            document.querySelectorAll('[id^="itemTotalAmt_"]').forEach(cell => {
+                const itemName = cell.id.replace(/^itemTotalAmt_/, '');
+                const amt = perItemAmt[itemName] || 0;
+                cell.innerText = amt > 0 ? `₹${amt.toFixed(2)}` : '';
+            });
+            const totalAmountEl = document.getElementById('grandTotalAmount');
+            if (totalAmountEl) totalAmountEl.innerText = `₹${totalAmount.toFixed(2)}`;
+        }
+
+        // Recomputes every row's total plus the grand total -- used after
+        // bulk state changes (loading existing entries, date change, absent toggle).
+        function updateAllTotals() {
+            document.querySelectorAll('tbody tr[data-emp-row]').forEach(row => updateRowTotal(row));
+            updateGrandTotal();
+        }
+
+        // Spreadsheet-style keyboard navigation: Enter moves down instead of
+        // submitting the whole form, and the arrow keys move between cells
+        // instead of the browser's native "increment/decrement the number"
+        // behavior or moving the text cursor.
+        function moveFocus(current, rowDelta, colDelta) {
+            const allRows = Array.from(document.querySelectorAll('tbody tr[data-emp-row]'));
+            const row = current.closest('tr');
+            const rowIndex = allRows.indexOf(row);
+            const rowInputs = Array.from(row.querySelectorAll('.qty-input'));
+            const colIndex = rowInputs.indexOf(current);
+
+            if (rowDelta !== 0) {
+                // Skip over any row that's disabled (marked Absent) and
+                // keep going in the same direction until a usable cell is found.
+                let targetRowIndex = rowIndex + rowDelta;
+                while (targetRowIndex >= 0 && targetRowIndex < allRows.length) {
+                    const targetInputs = Array.from(allRows[targetRowIndex].querySelectorAll('.qty-input'));
+                    const targetInput = targetInputs[colIndex];
+                    if (targetInput && !targetInput.disabled) {
+                        targetInput.focus();
+                        targetInput.select();
+                        return;
+                    }
+                    targetRowIndex += rowDelta;
+                }
+            } else if (colDelta !== 0) {
+                const targetColIndex = colIndex + colDelta;
+                if (targetColIndex >= 0 && targetColIndex < rowInputs.length) {
+                    const targetInput = rowInputs[targetColIndex];
+                    if (targetInput && !targetInput.disabled) {
+                        targetInput.focus();
+                        targetInput.select();
+                    }
+                }
+            }
+        }
+        document.querySelectorAll('.qty-input').forEach(input => {
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // never submit the form on Enter
+                    moveFocus(this, 1, 0); // move down, like a spreadsheet
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault(); // stop the native "increase number" behavior
+                    moveFocus(this, -1, 0);
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    moveFocus(this, 1, 0);
+                } else if (e.key === 'ArrowLeft') {
+                    // Note: selectionStart/selectionEnd throw on type="number"
+                    // inputs in most browsers, so we can't check cursor
+                    // position here -- move cells unconditionally, same as Up/Down.
+                    e.preventDefault();
+                    moveFocus(this, 0, -1);
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    moveFocus(this, 0, 1);
+                }
+            });
+        });
+
+        // Mark a staff member absent for this date: clears + locks their row
+        // so it won't be auto-filled and nothing gets submitted for them.
+        function toggleAbsent(empId, btn) {
+            const row = document.querySelector(`tr[data-emp-row="${empId}"]`);
+            const inputs = row.querySelectorAll('.qty-input');
+            const nowAbsent = !row.classList.contains('absent-row');
+
+            if (nowAbsent) {
+                row.classList.add('absent-row', 'opacity-50');
+                inputs.forEach(input => {
+                    input.value = '';
+                    input.disabled = true;
+                    delete input.dataset.userEdited;
+                });
+                btn.innerHTML = '<i data-lucide="user-x" class="w-3 h-3 mr-1"></i> Absent';
+                btn.classList.remove('bg-slate-50', 'text-slate-400', 'border-slate-200', 'hover:bg-slate-100');
+                btn.classList.add('bg-rose-100', 'text-rose-700', 'border-rose-200', 'hover:bg-rose-200');
+            } else {
+                row.classList.remove('absent-row', 'opacity-50');
+                inputs.forEach(input => { input.disabled = false; });
+                btn.innerHTML = '<i data-lucide="user-check" class="w-3 h-3 mr-1"></i> Present';
+                btn.classList.remove('bg-rose-100', 'text-rose-700', 'border-rose-200', 'hover:bg-rose-200');
+                btn.classList.add('bg-slate-50', 'text-slate-400', 'border-slate-200', 'hover:bg-slate-100');
+            }
+            lucide.createIcons();
+            updateAllTotals();
+        }
+
+        document.getElementById('datePicker').addEventListener('change', async function() {
+            // New date selected -> this is a genuinely different day's data,
+            // so cleared values, cleared edit/saved marks, and enabled state.
+            document.querySelectorAll('.qty-input').forEach(input => {
+                input.value = '';
+                delete input.dataset.userEdited;
+                input.disabled = false;
+                clearSavedMark(input);
+            });
+            updateAllTotals();
+            await loadExistingEntries(); // show what's already saved for this date
+        });
+
+        // Run once on page load for today's default date
+        loadExistingEntries();
+
+        // ---------------------------------------------------------------
+        // Unusual-entry check: compares what is typed against normal days
+        // (same weekday), regular eaters and each person's usual maximum.
+        // Runs when "Check entries" or "Save" is pressed -- never while typing,
+        // so a half-filled sheet doesn't throw false alarms.
+        // ---------------------------------------------------------------
+        let insights = null, insightsDate = null, confirmedSave = false;
+
+        async function loadInsights() {
+            const date = document.getElementById('datePicker').value;
+            if (!date) return;
+            try {
+                const res = await fetch(`/api/bulk-log-insights?date=${date}`);
+                if (!res.ok) throw new Error('bad response');
+                const data = await res.json();
+                if (document.getElementById('datePicker').value !== date) return;
+                insights = data; insightsDate = date;
+                const banner = document.getElementById('dateNoteBanner');
+                if (data.notes.length) {
+                    document.getElementById('dateNoteText').innerText = data.notes.join(' ');
+                    banner.classList.remove('hidden');
+                } else {
+                    banner.classList.add('hidden');
+                }
+            } catch (e) { insights = null; insightsDate = null; }
+        }
+
+        function collectEntries() {
+            const itemTotals = {}, cells = [], withEntry = new Set(), absent = new Set();
+            document.querySelectorAll('tbody tr[data-emp-row]').forEach(row => {
+                const empId = row.getAttribute('data-emp-row');
+                const name = row.querySelector('.font-medium').innerText.trim();
+                if (row.classList.contains('absent-row')) { absent.add(empId); return; }
+                row.querySelectorAll('.qty-input').forEach(input => {
+                    const qty = parseFloat(input.value) || 0;
+                    if (qty <= 0) return;
+                    const item = input.name.replace(/^qty_\d+_/, '');
+                    itemTotals[item] = (itemTotals[item] || 0) + qty;
+                    cells.push({ empId, name, item, qty });
+                    withEntry.add(empId);
+                });
+            });
+            return { itemTotals, cells, withEntry, absent };
+        }
+
+        function computeWarnings() {
+            if (!insights) return [];
+            const w = [];
+            const { itemTotals, cells, withEntry, absent } = collectEntries();
+            const wd = insights.weekday;
+            insights.notes.forEach(n => w.push({ icon: 'calendar-x', text: n }));
+
+            // 1) Item totals far from a normal day
+            Object.entries(insights.item_typical).forEach(([item, t]) => {
+                const total = itemTotals[item] || 0;
+                if (Math.abs(total - t.avg) >= Math.max(5, 0.4 * t.avg)) {
+                    const what = total === 0 ? `No <b>${item}</b> entered` : `<b>${item}</b>: ${total} entered`;
+                    w.push({ icon: total < t.avg ? 'trending-down' : 'trending-up',
+                             text: `${what} — usually about ${Math.round(t.avg)} on ${wd}s.` });
+                }
+            });
+
+            // 2) Regular eaters with nothing entered (and not marked absent)
+            const missing = insights.regular.filter(r => !withEntry.has(String(r.id)) && !absent.has(String(r.id)));
+            if (missing.length) {
+                const names = missing.slice(0, 8).map(r => r.name).join(', ') + (missing.length > 8 ? ` and ${missing.length - 8} more` : '');
+                w.push({ icon: 'user-x', text: `<b>${missing.length} regular staff</b> have no entries (and aren't marked Absent): ${names}.` });
+            }
+
+            // 3) A single quantity far above that person's usual
+            const odd = cells.filter(c => {
+                const prev = (insights.staff_max[c.empId] || {})[c.item] || 0;
+                return c.qty >= 4 && c.qty > Math.max(prev * 2, prev + 3);
+            });
+            odd.slice(0, 6).forEach(c => {
+                const prev = (insights.staff_max[c.empId] || {})[c.item] || 0;
+                w.push({ icon: 'zoom-in', text: `<b>${c.name}</b>: ${c.item} × ${c.qty} (their highest before: ${prev}). Typing slip?` });
+            });
+            if (odd.length > 6) w.push({ icon: 'zoom-in', text: `…and ${odd.length - 6} more unusually high quantities.` });
+            return w;
+        }
+
+        function openCheckModal(warnings, forSave) {
+            const overlay = document.getElementById('checkModalOverlay');
+            const body = document.getElementById('checkModalBody');
+            const btns = document.getElementById('checkModalButtons');
+            const title = document.getElementById('checkModalTitle');
+            if (warnings.length) {
+                title.innerText = `${warnings.length} thing${warnings.length > 1 ? 's' : ''} to double-check`;
+                body.innerHTML = warnings.map(x =>
+                    `<div class="flex items-start bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-900"><i data-lucide="${x.icon}" class="w-4 h-4 mr-2 mt-0.5 shrink-0"></i><span>${x.text}</span></div>`).join('') +
+                    '<p class="text-xs text-slate-400">These are only prompts based on past days — real days can differ.</p>';
+            } else {
+                title.innerText = 'Everything looks normal';
+                body.innerHTML = '<div class="flex items-center bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-3 text-emerald-800"><i data-lucide="check-circle" class="w-5 h-5 mr-2"></i><span>Quantities, regular staff and dates all look in line with previous days.</span></div>';
+            }
+            btns.innerHTML = forSave
+                ? '<button type="button" onclick="closeCheckModal()" class="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50">Go back &amp; fix</button>' +
+                  '<button type="button" onclick="saveAnyway()" class="bg-indigo-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-indigo-700">Save anyway</button>'
+                : '<button type="button" onclick="closeCheckModal()" class="bg-indigo-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-indigo-700">Close</button>';
+            overlay.classList.remove('hidden');
+            setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+            lucide.createIcons();
+        }
+        function closeCheckModal() {
+            const overlay = document.getElementById('checkModalOverlay');
+            overlay.classList.add('opacity-0');
+            setTimeout(() => overlay.classList.add('hidden'), 300);
+        }
+        async function runEntryCheck(forSave) {
+            if (!insights || insightsDate !== document.getElementById('datePicker').value) await loadInsights();
+            if (!insights) { alert("Couldn't load reference data for the check."); return; }
+            openCheckModal(computeWarnings(), forSave);
+        }
+        function saveAnyway() {
+            confirmedSave = true;
+            closeCheckModal();
+            const form = document.getElementById('bulkLogForm');
+            form.requestSubmit(form.querySelector('button[type="submit"]'));
+        }
+        document.getElementById('datePicker').addEventListener('change', loadInsights);
+        document.getElementById('bulkLogForm').addEventListener('submit', function (e) {
+            if (confirmedSave) { confirmedSave = false; return; }
+            if (!insights || insightsDate !== document.getElementById('datePicker').value) return;  // no reference data: just save
+            const warnings = computeWarnings();
+            if (warnings.length) {
+                e.preventDefault();
+                e.stopImmediatePropagation();   // keep the generic "Processing..." guard from firing
+                openCheckModal(warnings, true);
+            }
+        });
+        loadInsights();
+
+        // Universal Prevent Double Submit Logic
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            // Use the button that was ACTUALLY clicked (e.submitter), not just
+            // "the first submit button in the form" -- some pages have more
+            // than one submit button in the same form.
+            const submitBtn = e.submitter || form.querySelector('button[type="submit"]');
+            
+            if (submitBtn) {
+                // If the button is already disabled, stop the form from submitting again
+                if (submitBtn.disabled) {
+                    e.preventDefault();
+                    return;
+                }
+                
+                // Disable the button and change the text
+                submitBtn.disabled = true;
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 mr-2 animate-spin inline"></i> Processing...';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+                
+                // Safety fallback: Re-enable the button after 4 seconds just in case the server hangs
+                setTimeout(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }, 4000);
+            }
+        });
+    </script>
+</body>
+</html>

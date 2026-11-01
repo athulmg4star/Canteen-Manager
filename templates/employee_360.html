@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ emp_name }} — Profile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }</style>
+</head>
+<body class="flex h-screen text-slate-800">
+
+    <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0">
+        <div class="h-32 flex items-center justify-center border-b border-slate-200 bg-white p-4">
+            <img src="{{ url_for('static', filename='tiffin_banner.jpg') }}" alt="Tiffin Room" class="h-full w-auto object-contain">
+        </div>
+    <nav class="flex-1 p-4 space-y-2">
+    <a href="/" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i> Dashboard
+    </a>
+    <a href="/roster" class="flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 font-medium rounded-lg">
+        <i data-lucide="users" class="w-5 h-5 mr-3"></i> Office Roster
+    </a>
+    <a href="/bulk-log" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="layers" class="w-5 h-5 mr-3"></i> Bulk Month Entry
+    </a>
+    <a href="/log-meals" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="pen-tool" class="w-5 h-5 mr-3"></i> Single Entry
+    </a>
+    <a href="/payments" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="credit-card" class="w-5 h-5 mr-3"></i> Payments Ledger
+    </a>
+    <a href="/staff-loans" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="hand-coins" class="w-5 h-5 mr-3"></i> Staff Loans
+    </a>
+    <a href="/purchases" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="shopping-cart" class="w-5 h-5 mr-3"></i> Expense Tracker
+    </a>
+    <a href="/consumption" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="package" class="w-5 h-5 mr-3"></i> Consumption
+    </a>
+    <a href="/manager-fund" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="wallet" class="w-5 h-5 mr-3"></i> Manager's Fund
+    </a>
+    <a href="/history" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="history" class="w-5 h-5 mr-3"></i> Ledger History
+    </a>
+    <a href="/recycle-bin" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="trash-2" class="w-5 h-5 mr-3"></i> Recycle Bin
+    </a>
+    <hr class="my-4 border-slate-200">
+    <a href="/settings" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="settings" class="w-5 h-5 mr-3"></i> System Settings
+    </a>
+    <a href="/billing" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="receipt" class="w-5 h-5 mr-3"></i> WhatsApp Billing
+    </a>
+    <a href="/weekly-confirmation" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="clipboard-check" class="w-5 h-5 mr-3"></i> Weekly Confirmation
+    </a>
+</nav>
+        
+        <div class="px-5 py-4 border-t border-slate-200 bg-slate-50 mt-auto">
+            <div class="text-[10px] text-slate-400 leading-relaxed">
+                <p class="font-bold text-slate-700 tracking-wide uppercase mb-1.5">TRMS Enterprise v2.0</p>
+                <p>Developed by: <span class="font-medium text-slate-500">Athul M G</span></p>
+                <p>Canteen Manager: <span class="font-medium text-slate-500">{{ canteen_manager }}</span></p>
+                {% if committee_members %}
+                <p class="mt-1.5 pt-1.5 border-t border-slate-200/60 leading-tight">
+                    Committee Members: <br>
+                    <span class="font-medium text-slate-500">{{ committee_members }}</span>
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col overflow-y-auto">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center px-8 shrink-0">
+            <a href="/roster" class="text-slate-400 hover:text-indigo-600 mr-4 transition-colors">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </a>
+            <h1 class="text-xl font-semibold">Employee Profile</h1>
+        </header>
+
+        <div class="p-8 max-w-6xl w-full mx-auto space-y-6">
+
+            <!-- Header card -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex items-center justify-between flex-wrap gap-4">
+                <div class="flex items-center">
+                    <div class="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-2xl font-bold mr-5 shrink-0">
+                        {{ emp_name[0] }}
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-2xl font-bold text-slate-900">{{ emp_name }}</h2>
+                            {% if not is_active %}
+                            <span class="bg-slate-100 text-slate-500 text-[11px] font-semibold px-2 py-1 rounded-full">Archived</span>
+                            {% endif %}
+                        </div>
+                        <p class="text-sm text-indigo-600 font-medium uppercase tracking-wide mt-1">{{ emp_dept }}</p>
+                    </div>
+                </div>
+                <div class="text-right bg-slate-50 px-5 py-3 rounded-lg border border-slate-200">
+                    <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-0.5">Current Balance</p>
+                    <p class="text-2xl font-bold {% if current_due > 0.005 %}text-rose-600{% elif current_due < -0.005 %}text-emerald-600{% else %}text-slate-700{% endif %}">
+                        {% if current_due > 0.005 %}+{% endif %}₹{{ "%.2f"|format(current_due) }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Quick stats -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Lifetime Billed</p>
+                    <p class="text-lg font-bold text-slate-800">₹{{ "%.2f"|format(total_billed) }}</p>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Lifetime Paid</p>
+                    <p class="text-lg font-bold text-slate-800">₹{{ "%.2f"|format(total_paid) }}</p>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Active Months</p>
+                    <p class="text-lg font-bold text-slate-800">{{ active_months }}</p>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Avg Monthly Bill</p>
+                    <p class="text-lg font-bold text-slate-800">₹{{ "%.2f"|format(avg_monthly_bill) }}</p>
+                </div>
+            </div>
+
+            {% if loans|length > 0 %}
+            <!-- Staff loan status -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden {% if outstanding_loan_total > 0 %}border-l-4 border-l-amber-500{% endif %}">
+                <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center">
+                        <i data-lucide="hand-coins" class="w-4 h-4 mr-2 text-amber-600"></i> Staff Loans
+                    </h3>
+                    {% if outstanding_loan_total > 0 %}
+                    <span class="text-xs font-semibold text-amber-700">₹{{ "%.2f"|format(outstanding_loan_total) }} owed back</span>
+                    {% endif %}
+                </div>
+                <div class="divide-y divide-slate-100">
+                    {% for loan in loans %}
+                    <div class="px-6 py-3 flex items-center justify-between text-sm">
+                        <div>
+                            <span class="font-medium text-slate-800">₹{{ "%.2f"|format(loan[1]) }}</span>
+                            <span class="text-slate-500 ml-2">{{ loan[2] }} · {{ 'Bill Credit' if loan[3] == 'bill_credit' else 'Cash' }}</span>
+                        </div>
+                        {% if loan[4] == 'outstanding' %}
+                        <span class="bg-amber-100 text-amber-700 text-[11px] font-semibold px-2 py-1 rounded-full">Outstanding</span>
+                        {% else %}
+                        <span class="bg-emerald-100 text-emerald-700 text-[11px] font-semibold px-2 py-1 rounded-full">Settled {{ loan[5] }}</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Last 6 months trend -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between flex-wrap gap-2">
+                    <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center">
+                        <i data-lucide="trending-up" class="w-4 h-4 mr-2 text-indigo-500"></i> Last 6 Months — Bills &amp; Favourites
+                    </h3>
+                    <span class="text-xs font-semibold bg-blue-50 text-blue-700 px-2 py-1 rounded">Avg: ₹{{ "%.2f"|format(trend_avg) }}/month</span>
+                </div>
+
+                {% if trend_alert %}
+                <div class="mx-6 mt-4 flex items-start bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 text-sm">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 mr-2 mt-0.5 shrink-0"></i>
+                    <p><strong>{{ trend_alert.label }}</strong> is ₹{{ "%.2f"|format(trend_alert.total) }} — {{ trend_alert.pct }}% above the usual ₹{{ "%.2f"|format(trend_alert.avg) }}{% if trend_alert.driver %}. Biggest rise: <strong>{{ trend_alert.driver }}</strong> (+₹{{ "%.2f"|format(trend_alert.driver_amt) }}){% endif %}.</p>
+                </div>
+                {% endif %}
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
+                    <div class="lg:col-span-2">
+                        <div class="relative h-64 w-full"><canvas id="empTrendChart"></canvas></div>
+                        <p class="text-[11px] text-slate-400 mt-2">Hover a bar for that month's items. Red bars are well above this person's usual month. The current month is still in progress.</p>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center"><i data-lucide="star" class="w-3.5 h-3.5 mr-1.5 text-indigo-500"></i> Favourite items (6 months)</h4>
+                        {% for f in favourites %}
+                        <div class="mb-3">
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="font-medium text-slate-700">{{ f[0] }} <span class="text-slate-400 font-normal">x{{ f[1] }}</span></span>
+                                <span class="font-semibold text-slate-800">₹{{ "%.2f"|format(f[2]) }}</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                <div class="bg-indigo-500 h-2 rounded-full" style="width: {{ (f[2] / fav_max * 100) if fav_max else 0 }}%"></div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <p class="text-sm text-slate-400 italic">No meals in the last 6 months.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- Item favorites -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between flex-wrap gap-3">
+                        <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center">
+                            <i data-lucide="star" class="w-4 h-4 mr-2 text-indigo-500"></i> Consumption Breakdown ({{ breakdown_period_label }})
+                        </h3>
+                        <div class="relative">
+                            <i data-lucide="calendar-days" class="w-3.5 h-3.5 text-indigo-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                            <select onchange="window.location.href='/employee/{{ emp_id }}?breakdown_period='+this.value" class="appearance-none pl-8 pr-7 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 bg-white shadow-sm hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+                                <option value="lifetime" {% if breakdown_period == 'lifetime' %}selected{% endif %}>Lifetime</option>
+                                {% for m in available_breakdown_months %}
+                                <option value="{{ m.value }}" {% if m.value == breakdown_period %}selected{% endif %}>{{ m.label }}</option>
+                                {% endfor %}
+                            </select>
+                            <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                        </div>
+                    </div>
+                    <div class="p-6 space-y-3">
+                        {% for item in item_breakdown %}
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="font-medium text-slate-700">{{ item[0] }} <span class="text-slate-400 font-normal">x{{ item[1] }}</span></span>
+                                <span class="font-semibold text-slate-800">₹{{ "%.2f"|format(item[2]) }}</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                <div class="bg-indigo-500 h-2 rounded-full" style="width: {{ (item[2] / max_item_total * 100) if max_item_total else 0 }}%"></div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <p class="text-sm text-slate-400 italic text-center py-4">No meals logged for {{ breakdown_period_label }}.</p>
+                        {% endfor %}
+                    </div>
+                    {% if item_breakdown %}
+                    <div class="px-6 py-3 border-t-2 border-slate-100 bg-slate-50 flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">Total ({{ item_breakdown|length }} items)</span>
+                        <div class="text-right">
+                            <span class="text-xs text-slate-500 mr-2">{{ breakdown_total_qty }} servings</span>
+                            <span class="font-bold text-slate-900">₹{{ "%.2f"|format(breakdown_total_amount) }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Month by month -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                        <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center">
+                            <i data-lucide="calendar" class="w-4 h-4 mr-2 text-indigo-500"></i> Month-by-Month
+                        </h3>
+                    </div>
+                    <div class="overflow-y-auto max-h-64">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead class="sticky top-0 bg-white border-b border-slate-100">
+                                <tr class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                    <th class="px-6 py-2">Month</th>
+                                    <th class="px-6 py-2 text-right">Billed</th>
+                                    <th class="px-6 py-2 text-right">Paid</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for row in monthly_history %}
+                                <tr>
+                                    <td class="px-6 py-2.5 font-medium text-slate-700">{{ row.month_name }}</td>
+                                    <td class="px-6 py-2.5 text-right text-rose-600">+₹{{ "%.2f"|format(row.billed) }}</td>
+                                    <td class="px-6 py-2.5 text-right text-emerald-600">-₹{{ "%.2f"|format(row.paid) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="3" class="px-6 py-8 text-center text-slate-400 italic">No history yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- Recent meals -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                        <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center">
+                            <i data-lucide="utensils" class="w-4 h-4 mr-2 text-indigo-500"></i> Recent Meals
+                        </h3>
+                    </div>
+                    <div class="overflow-y-auto max-h-72">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <tbody class="divide-y divide-slate-100">
+                                {% for m in recent_meals %}
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-6 py-2.5 text-slate-500 text-xs whitespace-nowrap">{{ m[1] }}</td>
+                                    <td class="px-4 py-2.5 font-medium text-slate-700">{{ m[2] }} x{{ m[3] }}</td>
+                                    <td class="px-6 py-2.5 text-right text-slate-600">₹{{ "%.2f"|format(m[3] * m[4]) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td class="px-6 py-8 text-center text-slate-400 italic">No meals logged yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Recent payments -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                        <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center">
+                            <i data-lucide="credit-card" class="w-4 h-4 mr-2 text-indigo-500"></i> Recent Payments
+                        </h3>
+                    </div>
+                    <div class="overflow-y-auto max-h-72">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <tbody class="divide-y divide-slate-100">
+                                {% for p in recent_payments %}
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-6 py-2.5 text-slate-500 text-xs whitespace-nowrap">{{ p[1] }}</td>
+                                    <td class="px-6 py-2.5 text-right font-semibold text-emerald-600">₹{{ "%.2f"|format(p[2]) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td class="px-6 py-8 text-center text-slate-400 italic">No payments recorded yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        lucide.createIcons();
+
+        // --- Last 6 months trend chart ---
+        const trendLabels = {{ trend_labels | tojson }};
+        const trendTotals = {{ trend_totals | tojson }};
+        const trendFlags = {{ trend_flags | tojson }};
+        const trendItems = {{ trend_items | tojson }};
+        const trendAvg = {{ trend_avg | tojson }};
+        if (document.getElementById('empTrendChart')) {
+            const fmt = (n) => '₹' + Number(n).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            new Chart(document.getElementById('empTrendChart'), {
+                type: 'bar',
+                data: {
+                    labels: trendLabels,
+                    datasets: [
+                        { label: 'Billed', data: trendTotals, borderRadius: 6, maxBarThickness: 48,
+                          backgroundColor: trendFlags.map(f => f ? '#f43f5e' : '#6366f1') },
+                        { type: 'line', label: 'Average', data: trendLabels.map(() => trendAvg), borderColor: '#94a3b8',
+                          borderDash: [6, 4], borderWidth: 1.5, pointRadius: 0, fill: false }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1e293b', padding: 10, cornerRadius: 8,
+                            filter: (item) => item.datasetIndex === 0,
+                            callbacks: {
+                                label: (ctx) => 'Billed: ' + fmt(ctx.parsed.y),
+                                afterBody: (items) => {
+                                    const rows = trendItems[items[0].dataIndex] || [];
+                                    return rows.map(r => `${r[0]} x${r[1]}  ${fmt(r[2])}`);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { callback: (v) => '₹' + v.toLocaleString('en-IN') } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

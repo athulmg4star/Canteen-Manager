@@ -1,0 +1,3 @@
+{% macro tokens() %}<input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="submission_token" value="{{ submission_token() }}">{% endmacro %}
+{% macro month_filter(month) %}<form class="toolbar" method="GET"><label>Month<input type="month" name="month" value="{{ month }}" required></label><button class="button">View month</button></form>{% endmacro %}
+{% macro empty(text) %}<div class="empty-state"><i data-lucide="inbox"></i><p>{{ text }}</p></div>{% endmacro %}

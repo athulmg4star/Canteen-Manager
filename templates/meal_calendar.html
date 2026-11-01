@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meal Calendar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }</style>
+</head>
+<body class="flex h-screen text-slate-800">
+
+    <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0">
+        <div class="h-32 flex items-center justify-center border-b border-slate-200 bg-white p-4">
+            <img src="{{ url_for('static', filename='tiffin_banner.jpg') }}" alt="Tiffin Room" class="h-full w-auto object-contain">
+        </div>
+     <nav class="flex-1 p-4 space-y-2">
+    <a href="/" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i> Dashboard
+    </a>
+    <a href="/roster" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="users" class="w-5 h-5 mr-3"></i> Office Roster
+    </a>
+    <a href="/bulk-log" class="flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 font-medium rounded-lg">
+        <i data-lucide="layers" class="w-5 h-5 mr-3"></i> Bulk Month Entry
+    </a>
+    <a href="/log-meals" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="pen-tool" class="w-5 h-5 mr-3"></i> Single Entry
+    </a>
+    <a href="/payments" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="credit-card" class="w-5 h-5 mr-3"></i> Payments Ledger
+    </a>
+    <a href="/staff-loans" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="hand-coins" class="w-5 h-5 mr-3"></i> Staff Loans
+    </a>
+    <a href="/purchases" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="shopping-cart" class="w-5 h-5 mr-3"></i> Expense Tracker
+    </a>
+    <a href="/consumption" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="package" class="w-5 h-5 mr-3"></i> Consumption
+    </a>
+    <a href="/manager-fund" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="wallet" class="w-5 h-5 mr-3"></i> Manager's Fund
+    </a>
+    <a href="/history" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="history" class="w-5 h-5 mr-3"></i> Ledger History
+    </a>
+    <a href="/recycle-bin" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="trash-2" class="w-5 h-5 mr-3"></i> Recycle Bin
+    </a>
+    <hr class="my-4 border-slate-200">
+    <a href="/settings" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="settings" class="w-5 h-5 mr-3"></i> System Settings
+    </a>
+    <a href="/billing" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="receipt" class="w-5 h-5 mr-3"></i> WhatsApp Billing
+    </a>
+    <a href="/weekly-confirmation" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="clipboard-check" class="w-5 h-5 mr-3"></i> Weekly Confirmation
+    </a>
+</nav>
+        
+        <div class="px-5 py-4 border-t border-slate-200 bg-slate-50 mt-auto">
+            <div class="text-[10px] text-slate-400 leading-relaxed">
+                <p class="font-bold text-slate-700 tracking-wide uppercase mb-1.5">TRMS Enterprise v2.0</p>
+                <p>Developed by: <span class="font-medium text-slate-500">Athul M G</span></p>
+                <p>Canteen Manager: <span class="font-medium text-slate-500">{{ canteen_manager }}</span></p>
+                
+                {% if committee_members %}
+                <p class="mt-1.5 pt-1.5 border-t border-slate-200/60 leading-tight">
+                    Committee Members: <br>
+                    <span class="font-medium text-slate-500">{{ committee_members }}</span>
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+
+</aside>
+
+    <main class="flex-1 flex flex-col overflow-y-auto">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+            <div class="flex items-center">
+                <a href="/bulk-log" class="text-slate-400 hover:text-indigo-600 mr-4 transition-colors" title="Back to Bulk Month Entry">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                </a>
+                <div>
+                    <p class="text-[10px] font-bold tracking-widest uppercase text-slate-400">Your Office Canteen</p>
+                    <h1 class="text-xl font-semibold leading-tight">Meal Calendar</h1>
+                </div>
+            </div>
+            <form method="GET" action="/meal-calendar" class="flex items-center gap-2">
+                <a href="/meal-calendar?month={{ prev_month }}" class="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500" title="Previous month"><i data-lucide="chevron-left" class="w-4 h-4"></i></a>
+                <input type="month" name="month" value="{{ month }}" required class="border border-slate-300 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm">View month</button>
+                <a href="/meal-calendar?month={{ next_month }}" class="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500" title="Next month"><i data-lucide="chevron-right" class="w-4 h-4"></i></a>
+            </form>
+        </header>
+
+        <div class="p-8 max-w-6xl w-full mx-auto space-y-6">
+
+            <div class="flex items-end justify-between flex-wrap gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900">{{ display_month_name }}</h2>
+                    <p class="text-sm text-slate-500 mt-1">Monday–Friday are expected service days by default. Mark holidays or extra service days below. A missing day is a review prompt, not proof of an error. Click any day to open Bulk Month Entry for it.</p>
+                </div>
+                <div class="flex gap-3">
+                    <div class="bg-white border border-slate-200 rounded-lg px-4 py-2 shadow-sm text-right">
+                        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Recorded days</p>
+                        <p class="text-xl font-bold text-emerald-600 leading-tight">{{ recorded_days }}</p>
+                    </div>
+                    <div class="bg-white border border-slate-200 rounded-lg px-4 py-2 shadow-sm text-right">
+                        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Missing days</p>
+                        <p class="text-xl font-bold {% if missing_days %}text-amber-600{% else %}text-slate-400{% endif %} leading-tight">{{ missing_days }}</p>
+                    </div>
+                    <div class="bg-white border border-slate-200 rounded-lg px-4 py-2 shadow-sm text-right">
+                        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Month billed</p>
+                        <p class="text-xl font-bold text-indigo-700 leading-tight">₹{{ "%.0f"|format(total_amount) }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="grid grid-cols-7 gap-3 mb-2 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    {% for d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}<div>{{ d }}</div>{% endfor %}
+                </div>
+                <div class="grid grid-cols-7 gap-3">
+                    {% for _ in range(padding) %}<div></div>{% endfor %}
+                    {% for d in days %}
+                    {% set styles = {
+                        'recorded': 'bg-emerald-50 border-emerald-200 hover:border-emerald-400',
+                        'missing': 'bg-amber-50 border-amber-300 hover:border-amber-500',
+                        'today': 'bg-white border-indigo-300 hover:border-indigo-500',
+                        'upcoming': 'bg-white border-slate-200 hover:border-indigo-300',
+                        'closed': 'bg-slate-100 border-slate-200 hover:border-slate-300',
+                        'off': 'bg-white/60 border-slate-100 hover:border-slate-300'
+                    } %}
+                    <a href="/bulk-log?date={{ d.iso }}" data-day="{{ d.iso }}" data-label="{{ d.number }}" class="cal-day block min-h-[104px] rounded-xl border p-3 transition-colors {{ styles[d.kind] }} {% if d.is_today %}ring-2 ring-indigo-500{% endif %}">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-lg {% if d.kind in ['off','closed'] %}text-slate-400{% else %}text-slate-800{% endif %}">{{ d.number }}</span>
+                            {% if d.is_today %}<span class="text-[10px] font-bold bg-indigo-600 text-white px-1.5 py-0.5 rounded">TODAY</span>{% endif %}
+                        </div>
+                        {% if d.kind == 'recorded' %}
+                            <p class="text-sm font-bold text-slate-800 mt-1">{{ d.staff }} staff</p>
+                            <p class="text-xs text-emerald-700">₹{{ "%.0f"|format(d.amount) }}</p>
+                        {% elif d.kind == 'missing' %}
+                            <p class="text-xs font-semibold text-amber-700 mt-2 flex items-center"><i data-lucide="alert-circle" class="w-3.5 h-3.5 mr-1"></i> No entries</p>
+                        {% elif d.kind == 'today' %}
+                            <p class="text-xs text-slate-500 mt-2">No entries yet</p>
+                        {% elif d.kind == 'closed' %}
+                            <p class="text-xs font-semibold text-slate-500 mt-2">Closed</p>
+                        {% elif d.kind == 'off' %}
+                            <p class="text-xs text-slate-400 mt-2">Not expected</p>
+                        {% else %}
+                            <p class="text-xs text-slate-400 mt-2">Upcoming</p>
+                        {% endif %}
+                        {% if d.override == 'open' and d.kind != 'recorded' %}<p class="text-[10px] font-semibold text-indigo-600 mt-0.5">Extra service day</p>{% endif %}
+                        {% if d.note %}<p class="text-[11px] text-slate-500 mt-0.5 leading-tight">{{ d.note }}</p>{% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+                <div class="flex flex-wrap gap-4 mt-4 text-xs text-slate-500">
+                    <span class="flex items-center"><span class="w-3 h-3 rounded bg-emerald-100 border border-emerald-300 mr-1.5"></span> Recorded</span>
+                    <span class="flex items-center"><span class="w-3 h-3 rounded bg-amber-100 border border-amber-300 mr-1.5"></span> Missing (expected, no entries)</span>
+                    <span class="flex items-center"><span class="w-3 h-3 rounded bg-slate-100 border border-slate-300 mr-1.5"></span> Closed / holiday</span>
+                    <span class="flex items-center"><span class="w-3 h-3 rounded bg-white border border-slate-200 mr-1.5"></span> Not expected / upcoming</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                    <h2 class="text-lg font-semibold text-slate-900 mb-4">Set a service day</h2>
+                    <form method="POST" action="/meal-calendar" class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Date</label>
+                            <input type="date" name="day" value="{{ today }}" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                            <select name="status" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option value="closed">Closed / holiday</option>
+                                <option value="open">Open / expected service</option>
+                                <option value="default">Back to default (Mon–Fri)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Note</label>
+                            <input type="text" name="note" placeholder="Office holiday, special working day…" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 shadow-sm">Save day</button>
+                    </form>
+                </div>
+
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                    <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3">Marked days — {{ display_month_name }}</h2>
+                    {% for disp, iso, st, note in override_list %}
+                    <form method="POST" action="/meal-calendar" class="flex items-center justify-between py-2 border-b border-slate-100 last:border-0 text-sm">
+                        <input type="hidden" name="day" value="{{ iso }}">
+                        <input type="hidden" name="status" value="default">
+                        <span><span class="font-medium text-slate-800">{{ disp }}</span>
+                            <span class="ml-1 text-xs {% if st == 'closed' %}text-slate-500{% else %}text-indigo-600{% endif %}">{{ 'Closed' if st == 'closed' else 'Open' }}</span>
+                            {% if note %}<span class="block text-xs text-slate-400">{{ note }}</span>{% endif %}</span>
+                        <button type="submit" class="text-xs text-slate-400 hover:text-rose-600" title="Remove this mark">Reset</button>
+                    </form>
+                    {% else %}
+                    <p class="text-sm text-slate-400 italic">No holidays or extra days marked.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        lucide.createIcons();
+
+        // --- Hover card: who ate what on that day ---
+        const dayDetails = {{ day_details | tojson }};
+        const tip = document.createElement('div');
+        tip.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;background:#1e293b;color:#fff;border-radius:10px;padding:12px 14px;font:12px Inter,sans-serif;box-shadow:0 10px 25px rgba(0,0,0,.3);opacity:0;transition:opacity .1s;max-width:96vw;';
+        document.body.appendChild(tip);
+        const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+        const money = (n) => '₹' + Number(n).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        const dmy = (iso) => iso.split('-').reverse().join('-');
+
+        function showTip(el, ev) {
+            const iso = el.dataset.day, d = dayDetails[iso];
+            if (!d) { tip.style.opacity = 0; return; }
+            const total = d.items.reduce((a, r) => a + r[2], 0);
+            const PER_COL = 14;
+            const cols = Math.min(4, Math.max(1, Math.ceil(d.staff.length / PER_COL)));
+            const itemLine = d.items.map(r => `<span style="display:inline-block;margin:0 10px 2px 0;"><b>${esc(r[0])}</b> x${r[1]}</span>`).join('');
+            const staffRows = d.staff.map(s =>
+                '<div style="display:flex;justify-content:space-between;gap:12px;padding:1px 0;break-inside:avoid;">' +
+                '<span><b>' + esc(s[0]) + '</b> <span style="color:#94a3b8">' + s[1].map(i => esc(i[0]) + (i[1] > 1 ? ' x' + i[1] : '')).join(', ') + '</span></span>' +
+                '<b style="white-space:nowrap">' + money(s[2]) + '</b></div>').join('');
+            tip.innerHTML =
+                '<div style="font-weight:700;font-size:13px;">' + dmy(iso) + '</div>' +
+                '<div style="color:#a5b4fc;margin:2px 0 6px;">' + d.staff.length + ' staff &middot; <b>' + money(total) + '</b></div>' +
+                '<div style="margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #334155;">' + itemLine + '</div>' +
+                '<div style="column-count:' + cols + ';column-gap:26px;min-width:' + (cols === 1 ? 300 : 300 * cols) + 'px;">' + staffRows + '</div>';
+            tip.style.opacity = 1;
+            moveTip(ev);
+        }
+        function moveTip(ev) {
+            const w = tip.offsetWidth, h = tip.offsetHeight;
+            let x = ev.clientX + 16, y = ev.clientY + 16;
+            if (x + w > window.innerWidth - 8) x = ev.clientX - w - 16;
+            if (y + h > window.innerHeight - 8) y = window.innerHeight - h - 8;
+            tip.style.left = Math.max(8, x) + 'px';
+            tip.style.top = Math.max(8, y) + 'px';
+        }
+        document.querySelectorAll('.cal-day').forEach(el => {
+            el.addEventListener('mouseenter', ev => showTip(el, ev));
+            el.addEventListener('mousemove', moveTip);
+            el.addEventListener('mouseleave', () => { tip.style.opacity = 0; });
+        });
+    </script>
+</body>
+</html>

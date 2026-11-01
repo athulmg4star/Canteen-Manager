@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Billing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }</style>
+</head>
+<body class="flex h-screen text-slate-800">
+
+    <!-- Sidebar with Modern Tiffin Banner -->
+    <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0">
+        <div class="h-32 flex items-center justify-center border-b border-slate-200 bg-white p-4">
+            <img src="{{ url_for('static', filename='tiffin_banner.jpg') }}" alt="Tiffin Room" class="h-full w-auto object-contain">
+        </div>
+        <nav class="flex-1 p-4 space-y-2">
+    <a href="/" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i> Dashboard
+    </a>
+    <a href="/roster" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="users" class="w-5 h-5 mr-3"></i> Office Roster
+    </a>
+    <a href="/bulk-log" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="layers" class="w-5 h-5 mr-3"></i> Bulk Month Entry
+    </a>
+    <a href="/log-meals" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="pen-tool" class="w-5 h-5 mr-3"></i> Single Entry
+    </a>
+    <a href="/payments" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="credit-card" class="w-5 h-5 mr-3"></i> Payments Ledger
+    </a>
+    <a href="/staff-loans" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="hand-coins" class="w-5 h-5 mr-3"></i> Staff Loans
+    </a>
+    <a href="/purchases" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="shopping-cart" class="w-5 h-5 mr-3"></i> Expense Tracker
+    </a>
+    <a href="/consumption" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="package" class="w-5 h-5 mr-3"></i> Consumption
+    </a>
+    <a href="/manager-fund" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="wallet" class="w-5 h-5 mr-3"></i> Manager's Fund
+    </a>
+    <a href="/history" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="history" class="w-5 h-5 mr-3"></i> Ledger History
+    </a>
+    <a href="/recycle-bin" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="trash-2" class="w-5 h-5 mr-3"></i> Recycle Bin
+    </a>
+    <hr class="my-4 border-slate-200">
+    <a href="/settings" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="settings" class="w-5 h-5 mr-3"></i> System Settings
+    </a>
+    <a href="/billing" class="flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 font-medium rounded-lg">
+        <i data-lucide="receipt" class="w-5 h-5 mr-3"></i> WhatsApp Billing
+    </a>
+    <a href="/weekly-confirmation" class="flex items-center px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
+        <i data-lucide="clipboard-check" class="w-5 h-5 mr-3"></i> Weekly Confirmation
+    </a>
+</nav>
+        
+        <div class="px-5 py-4 border-t border-slate-200 bg-slate-50 mt-auto">
+            <div class="text-[10px] text-slate-400 leading-relaxed">
+                <p class="font-bold text-slate-700 tracking-wide uppercase mb-1.5">TRMS Enterprise v2.0</p>
+                <p>Developed by: <span class="font-medium text-slate-500">Athul M G</span></p>
+                <p>Canteen Manager: <span class="font-medium text-slate-500">{{ canteen_manager }}</span></p>
+                
+                {% if committee_members %}
+                <p class="mt-1.5 pt-1.5 border-t border-slate-200/60 leading-tight">
+                    Committee Members: <br>
+                    <span class="font-medium text-slate-500">{{ committee_members }}</span>
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col overflow-y-auto">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+            <h1 class="text-xl font-semibold">Staff Billing & Invoices</h1>
+            
+            <div class="flex items-center space-x-3">
+                <label class="text-sm font-medium text-slate-700">Billing Month:</label>
+                <select data-month-nav onchange="window.location.href='/billing?month='+this.value" class="border border-slate-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-700 bg-slate-50">
+                    {% for m in available_months %}
+                        <option value="{{ m }}" {% if m == target_month %}selected{% endif %}>{{ m }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </header>
+
+        <div class="p-8 max-w-6xl mx-auto w-full">
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                    <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wider">Detailed Invoice Breakdown ({{ display_month_name }})</h2>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="text-xs font-semibold uppercase tracking-wider text-slate-500 bg-white border-b border-slate-200">
+                                <th class="px-6 py-4">Staff Member</th>
+                                <th class="px-6 py-4 text-center">Brought Forward</th>
+                                <th class="px-6 py-4 text-center">This Month's Bill</th>
+                                <th class="px-6 py-4 text-center">Paid This Month</th>
+                                <th class="px-6 py-4 text-right">Total Payable</th>
+                                <th class="px-6 py-4 text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-sm">
+                            {% for bill in billing_data %}
+                            <tr class="hover:bg-slate-50 transition-colors">
+                                <td class="px-6 py-4 font-medium text-slate-900">{{ bill.name }}</td>
+                                <td class="px-6 py-4 text-center text-slate-500">₹{{ "%.2f"|format(bill.brought_forward) }}</td>
+                                <td class="px-6 py-4 text-center text-blue-600 font-medium">+₹{{ "%.2f"|format(bill.month_bill) }}</td>
+                                <td class="px-6 py-4 text-center text-emerald-600 font-medium">-₹{{ "%.2f"|format(bill.month_paid) }}</td>
+                                
+                                <td class="px-6 py-4 text-right font-bold text-base {% if bill.total_due < 0 %}text-emerald-600{% else %}text-rose-600{% endif %}">₹{{ "%.2f"|format(bill.total_due) }}</td>
+                                
+                                <td class="px-6 py-4 flex items-center justify-center space-x-2">
+    {% if not bill.is_settled %}
+        <!-- Active Button for Pending Dues -->
+        <button onclick="copyBill('{{ bill.name }}', {{ bill.brought_forward }}, {{ bill.month_bill }}, {{ bill.month_paid }}, {{ bill.total_due }}, '{{ display_month_name }}')" class="inline-flex items-center px-3 py-1.5 bg-emerald-700 text-white rounded font-medium hover:bg-emerald-800 transition-colors shadow-sm text-xs">
+            <i data-lucide="message-circle" class="w-3.5 h-3.5 mr-1.5"></i> WhatsApp
+        </button>
+    {% else %}
+        <!-- Inactive Settled Button for Cleared/Advance Balances -->
+        <button disabled class="inline-flex items-center px-3 py-1.5 bg-slate-50 text-slate-400 border border-slate-200 rounded font-medium cursor-not-allowed text-xs">
+            <i data-lucide="check-circle" class="w-3.5 h-3.5 mr-1.5 text-emerald-500"></i> Settled
+        </button>
+    {% endif %}
+    
+    <!-- Individual PDF Slip Button -->
+    <a href="/download-slip/{{ bill.id }}?month={{ target_month }}" class="inline-flex items-center px-3 py-1.5 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded text-slate-600 hover:text-indigo-600 transition-colors shadow-sm text-xs font-medium">
+        <i data-lucide="printer" class="w-3.5 h-3.5 mr-1.5"></i> Slip
+    </a>
+</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="px-6 py-8 text-center text-slate-500 italic">No billing records found for this month.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- NEW: Modern Toast Notification (Hidden by Default) -->
+    <div id="copyToast" class="fixed bottom-8 right-8 bg-slate-800 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center transform transition-all duration-300 translate-y-12 opacity-0 pointer-events-none z-50">
+        <div class="bg-emerald-500 rounded-full p-1 mr-3">
+            <i data-lucide="check" class="w-4 h-4 text-white"></i>
+        </div>
+        <div>
+            <p class="text-sm font-semibold" id="toastName">Bill Copied!</p>
+            <p class="text-xs text-slate-300">Ready to paste into WhatsApp</p>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        function copyBill(name, broughtForward, monthBill, monthPaid, totalDue, monthName) {
+            
+            // Smart closing message based on the total due
+            let closingMessage = "";
+            if (totalDue > 0) {
+                closingMessage = `Please clear the pending dues at your earliest convenience. 💳\n\n`;
+            } else if (totalDue < 0) {
+                closingMessage = `You have an advance credit balance. No payment required right now! 🎉\n\n`;
+            } else {
+                closingMessage = `Your balance is perfectly settled. 🌟\n\n`;
+            }
+
+            // Format the message with emojis and the smart closing message
+            const text = `🧾 *Tiffin Room Bill - ${monthName}* 🧾\n` +
+                         `👤 Name: ${name}\n\n` +
+                         `📜 Arrears (Prev Month): ₹${broughtForward.toFixed(2)}\n` +
+                         `☕ This Month's Bill: ₹${monthBill.toFixed(2)}\n` +
+                         `💸 Paid This Month: ₹${monthPaid.toFixed(2)}\n` +
+                         `------------------------\n` +
+                         `🛑 *Total Payable: ₹${totalDue.toFixed(2)}* 🛑\n\n` +
+                         closingMessage +
+                         `Thank you! 🙏`;
+
+            // Copy to clipboard
+            navigator.clipboard.writeText(text).then(() => {
+                
+                // Show the modern Toast notification
+                const toast = document.getElementById('copyToast');
+                document.getElementById('toastName').innerText = 'Bill copied for ' + name + '!';
+                
+                // Slide it up and make it visible
+                toast.classList.remove('translate-y-12', 'opacity-0');
+                
+                // Automatically hide it after 3 seconds
+                setTimeout(() => {
+                    toast.classList.add('translate-y-12', 'opacity-0');
+                }, 3000);
+                
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert("Failed to copy bill. Please try again.");
+            });
+        }
+    </script>
+    <script>
+        // Month arrows: puts a "<" and ">" button on either side of every month dropdown
+        // (previous / next month, same idea as the Meal Calendar). Works whatever order the
+        // options are listed in, because it compares the YYYY-MM values themselves.
+        (function () {
+            document.querySelectorAll('select[data-month-nav]').forEach(function (sel) {
+                if (sel.closest('.month-nav-wrap')) return;
+                var wrap = document.createElement('div');
+                wrap.className = 'month-nav-wrap inline-flex items-center gap-1.5';
+                var anchor = sel.parentElement.classList.contains('relative') ? sel.parentElement : sel;
+                anchor.parentElement.insertBefore(wrap, anchor);
+                var mk = function (dir) {
+                    var b = document.createElement('button');
+                    b.type = 'button';
+                    b.title = dir < 0 ? 'Previous month' : 'Next month';
+                    b.className = 'p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed shrink-0';
+                    b.innerHTML = dir < 0
+                        ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>'
+                        : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+                    b.addEventListener('click', function () { step(dir); });
+                    return b;
+                };
+                var prev = mk(-1), next = mk(1);
+                wrap.appendChild(prev); wrap.appendChild(anchor); wrap.appendChild(next);
+                function neighbour(dir) {
+                    var cur = sel.value, best = null;
+                    Array.prototype.forEach.call(sel.options, function (o) {
+                        if (!/^\d{4}-\d{2}$/.test(o.value)) return;
+                        if (dir < 0 && o.value < cur && (best === null || o.value > best)) best = o.value;
+                        if (dir > 0 && o.value > cur && (best === null || o.value < best)) best = o.value;
+                    });
+                    return best;
+                }
+                function refresh() { prev.disabled = neighbour(-1) === null; next.disabled = neighbour(1) === null; }
+                function step(dir) {
+                    var v = neighbour(dir);
+                    if (v === null) return;
+                    sel.value = v;
+                    sel.dispatchEvent(new Event('change', { bubbles: true }));
+                    refresh();
+                }
+                sel.addEventListener('change', refresh);
+                refresh();
+            });
+        })();
+    </script>
+</body>
+</html>
